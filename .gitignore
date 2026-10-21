@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+__pycache__/
+# raw open-data downloads; the game ships the generated js/streets-data.js
+*.geojson
+*.csv

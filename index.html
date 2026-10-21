@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Grand Theft Parking: Berkeley</title>
+  <meta name="description" content="A short, absurd browser-game parody. Drive to Hopkins. Park. Buy one slice at Gioia. Survive the process.">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-scene="title">
+  <canvas id="game" tabindex="-1" aria-label="Game view"></canvas>
+
+  <div id="hud-dom">
+    <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause" title="Pause (P / Esc)">⏸</button>
+    <button id="muteBtn" class="icon-btn" type="button" aria-label="Mute sound" title="Mute / unmute">🔊</button>
+  </div>
+
+  <!-- Title -->
+  <section id="title" class="overlay" aria-labelledby="title-h" hidden>
+    <div class="card title-card">
+      <p class="title-pre">A civic crime spree in five inconveniences</p>
+      <h1 id="title-h" class="logo">
+        <span class="l1">GRAND THEFT</span>
+        <span class="l2">PARKING</span>
+        <span class="l3">BERKELEY</span>
+      </h1>
+      <p class="title-sub">Pothole City Edition</p>
+      <p class="tagline">In a city where everything is a priority, nothing is paved.</p>
+      <p class="brief"><strong>YOUR MISSION:</strong> Drive to Hopkins Street. Park. Buy one slice of pizza at Gioia. <em>How hard could it be?</em></p>
+      <table class="controls" aria-label="Controls">
+        <tbody>
+          <tr><th><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></th><td>Drive, brake/reverse, steer</td></tr>
+          <tr><th><kbd>Space</kbd></th><td>Handbrake / sharp turn</td></tr>
+          <tr><th><kbd>E</kbd> / <kbd>Enter</kbd></th><td>Interact with mission markers</td></tr>
+          <tr><th><kbd>M</kbd></th><td>Toggle minimap</td></tr>
+          <tr><th><kbd>P</kbd> / <kbd>Esc</kbd></th><td>Pause</td></tr>
+          <tr><th>Mouse / tap / <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></th><td>Dialogue choices &amp; menus</td></tr>
+        </tbody>
+      </table>
+      <div class="btn-row">
+        <button id="startBtn" class="btn big" type="button" data-autofocus>START <span class="hint">(Enter)</span></button>
+        <button id="optionsBtn" class="btn" type="button">Options</button>
+      </div>
+      <p class="fine">A parody. All characters are fictional archetypes. Not affiliated with any game publisher, or with any city council, which would first need to form a committee.</p>
+    </div>
+  </section>
+
+  <!-- Pause -->
+  <section id="pause" class="overlay" aria-labelledby="pause-h" hidden>
+    <div class="card">
+      <h2 id="pause-h">PAUSED</h2>
+      <p class="muted">The city is also paused. Nobody noticed.</p>
+      <div class="btn-col">
+        <button id="resumeBtn" class="btn big" type="button" data-autofocus>Resume</button>
+        <button id="retryBtn" class="btn" type="button">Retry from checkpoint</button>
+        <button id="restartBtn" class="btn" type="button">Restart game</button>
+        <button id="pauseOptionsBtn" class="btn" type="button">Options</button>
+        <button id="quitBtn" class="btn" type="button">Quit to title</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Options -->
+  <section id="options" class="overlay" aria-labelledby="options-h" hidden>
+    <div class="card">
+      <h2 id="options-h">OPTIONS</h2>
+      <div class="opts">
+        <label><input type="checkbox" id="optMuted"> Mute all sound</label>
+        <label class="range">Music <input type="range" id="optMusic" min="0" max="100"></label>
+        <label class="range">Sound effects <input type="range" id="optSfx" min="0" max="100"></label>
+        <label><input type="checkbox" id="optReduced"> Reduced motion (no shake, gentler effects)</label>
+        <label><input type="checkbox" id="optRadio"> KPTH talk-radio ticker</label>
+        <label><input type="checkbox" id="optMinimap"> Minimap</label>
+        <label><input type="checkbox" id="optHazards"> Slalom secondary hazards (potholes, cyclists, traffic)</label>
+      </div>
+      <div class="btn-row"><button id="optionsDone" class="btn big" type="button" data-autofocus>Done</button></div>
+    </div>
+  </section>
+
+  <!-- End screen -->
+  <section id="end" class="overlay" aria-labelledby="end-h" hidden>
+    <div class="card end-card">
+      <h2 id="end-h" class="passed">MISSION PASSED!</h2>
+      <dl class="big-stats">
+        <div><dt>PARKING SPACES FOUND</dt><dd id="endParking">0</dd></div>
+        <div><dt>COMMITTEES FORMED</dt><dd id="endCommittees">7</dd></div>
+        <div><dt>SLICES ACQUIRED</dt><dd id="endSlices">0</dd></div>
+      </dl>
+      <p class="award">🏆 Awarded: <strong>The Golden Cone of Civic Perseverance</strong> <span class="muted">(non-transferable, non-functional)</span></p>
+      <dl class="small-stats">
+        <div><dt>Best airtime</dt><dd id="endAir">0s</dd></div>
+        <div><dt>Potholes enjoyed</dt><dd id="endPotholes">0</dd></div>
+        <div><dt>Slalom score</dt><dd id="endScore">0</dd></div>
+        <div><dt>Bureaucracy</dt><dd id="endStars">☆☆☆☆☆</dd></div>
+        <div><dt>Errand duration</dt><dd id="endTime">0</dd></div>
+      </dl>
+      <p class="committees"><span class="muted">Committees:</span> <span id="endCommitteeList"></span></p>
+      <div class="btn-row">
+        <button id="againBtn" class="btn big" type="button" data-autofocus>PLAY AGAIN</button>
+        <button id="shareBtn" class="btn" type="button">SHARE YOUR CIVIC ACHIEVEMENT</button>
+      </div>
+      <textarea id="shareFallback" rows="5" readonly hidden aria-label="Share text"></textarea>
+      <p id="shareStatus" class="muted" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- Council dialogue -->
+  <div id="council-ui" hidden>
+    <div id="choices" hidden>
+      <div class="timer"><div id="choiceTimer"></div></div>
+      <button class="choice" type="button"></button>
+      <button class="choice" type="button"></button>
+      <button class="choice" type="button"></button>
+    </div>
+    <button id="pcBtn" type="button" hidden>PUBLIC COMMENT: 10 SECONDS <span class="key">(C)</span><span class="pcbar"><span id="pcBar"></span></span></button>
+  </div>
+
+  <!-- Touch controls (shown on coarse pointers) -->
+  <div id="touch" aria-hidden="true">
+    <div class="pad left">
+      <button data-t="left" type="button" tabindex="-1">◀</button>
+      <button data-t="right" type="button" tabindex="-1">▶</button>
+    </div>
+    <div class="pad right">
+      <button data-t="interact" type="button" tabindex="-1" class="small">E</button>
+      <button data-t="hand" type="button" tabindex="-1" class="small">HB</button>
+      <button data-t="down" type="button" tabindex="-1">▼</button>
+      <button data-t="up" type="button" tabindex="-1">▲</button>
+    </div>
+  </div>
+
+  <noscript><p class="noscript">This game needs JavaScript. Much like the city needs asphalt.</p></noscript>
+
+  <script src="js/util.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/hud.js"></script>
+  <script src="js/car.js"></script>
+  <script src="js/streets-data.js"></script>
+  <script src="js/citymap.js"></script>
+  <script src="js/city.js"></script>
+  <script src="js/council.js"></script>
+  <script src="js/slalom.js"></script>
+  <script src="js/finale.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
