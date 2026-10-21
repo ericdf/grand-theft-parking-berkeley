@@ -21,6 +21,7 @@ html, body {
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* no double-tap zoom: rapid steering taps were zooming Safari */
 }
 
 canvas#game3d {
@@ -294,7 +295,7 @@ body.has-touch:not([data-scene="title"]):not([data-scene="council"]):not([data-s
   pointer-events: none;
 }
 body.has-touch #hud-dom { bottom: auto; top: 76px; }
-#touch .pad { display: flex; gap: 10px; align-items: flex-end; pointer-events: auto; }
+#touch .pad { display: flex; gap: 10px; align-items: flex-end; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; }
 #touch .pad.right { flex-wrap: wrap; justify-content: flex-end; max-width: 190px; }
 #touch button {
   width: 72px;
