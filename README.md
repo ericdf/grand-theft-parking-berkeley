@@ -37,6 +37,10 @@ You can deploy it as-is to GitHub Pages, Netlify, or any static host. It makes n
 
 Flow: Title → City (Drive 1 → Hopkins → council tent) → Council → Slalom → Finale. A checkpoint is saved at the start of each mission. "Retry from checkpoint" (pause menu), losing the slice, and running out the council clock all restore the stats from that checkpoint.
 
+## Off-road
+
+The car can jump the curb and drive on sidewalks and lawns. Houses, storefronts, trees, Berkeley High, the council tent, barricades and transformed parking spaces still stop it. Grass drags the car down and throws sod, and every lawn crossing leaves tire ruts (the last 3,000 segments, in both views). Turf enough of them and the Lawn Restoration Working Group convenes.
+
 ## 3D chase view
 
 The city missions (Drive 1, Hopkins, the drive to the council tent) can be played in 3D from just behind the car, GTA-style: **3D VIEW** on the title screen, **V** while driving, the Options checkbox, or `?view=fp` in the URL. It is the same game, not a port: car physics, collisions, potholes, cyclists, parking spaces and routing are all the top-down code, and only the camera changes.

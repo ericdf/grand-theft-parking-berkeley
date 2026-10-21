@@ -305,6 +305,23 @@ G.scenes = G.scenes || {};
     return out;
   })();
 
+  // ---------- solid scenery (the car can leave the road, but not drive through a house) ----------
+  const rectPoly = (x, y, a, w, d) => {
+    const c = Math.cos(a), sn = Math.sin(a);
+    return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([lx, ly]) => [x + lx * c - ly * sn, y + lx * sn + ly * c]);
+  };
+  M.chunks.forEach((list) => list.forEach((it) => {
+    if (it.kind === 'house') it.poly = rectPoly(it.x, it.y, it.a, it.big ? it.w * 1.3 : it.w, it.big ? it.h * 1.2 : it.h);
+    else if (it.kind === 'store') it.poly = rectPoly(it.x, it.y, it.a, it.hero || it.big ? 70 : 46, it.hero || it.big ? 48 : 38);
+  }));
+  const BHS_BUILDING = (() => {
+    const bz = M.zones.bhs, [bcx, bcy] = M.zoneCenter(bz);
+    const bw = Math.abs(bz[1][0] - bz[0][0]), bh = Math.abs(bz[3][1] - bz[0][1]);
+    return rectPoly(bcx, bcy - bh * 0.28, 0, bw * 0.84, bh * 0.36);
+  })();
+  const TRACK_MAX = 3000;
+  const QUIPS_LAWN = ['TURFED!', 'LAWN: REIMAGINED', 'NATIVE GRASSES: GONE', 'AERATION SERVICES', 'SOD OFF!', 'THAT WAS DROUGHT-TOLERANT'];
+
   // ---------- scene ----------
   const City = {};
   G.scenes.city = City;
@@ -321,6 +338,10 @@ G.scenes = G.scenes || {};
     this.parkSeq = -1;
     this.lastLand = null;
     this.chEntered = false;
+    this.tracks = [];   // tire ruts in the grass: [x0, y0, x1, y1] per wheel, newest last
+    this.trackCount = 0; // total ever laid, so renderers can tell what's new
+    this.lastRut = null;
+    this.sodT = 0;
     this.cones = clutter.cones.map((c) => ({ x: c.x0, y: c.y0, vx: 0, vy: 0, rot: 0, vr: 0, down: false, minStars: c.minStars, scale: 0 }));
     this.inspectors = clutter.inspectors.map((p) => Object.assign({}, p, { cd: 0, scale: 0 }));
     this.cyclists = CYCLIST_DEFS.map((d) => {
@@ -420,11 +441,19 @@ G.scenes = G.scenes || {};
       G.hud.addShake(4);
     }
 
-    // stay on the asphalt; bounce off barricades and anything a parking space turned into
+    // curbs, sidewalks and lawns are fair game; houses, storefronts, trees, the tent, the barricades
+    // and anything a parking space turned into are not
     if (car.z < 25) {
       const hits = [];
-      const rh = M.roadHit(car.x, car.y, car.r);
-      if (rh) hits.push(rh);
+      M.chunkItems(car.x - 80, car.y - 80, car.x + 80, car.y + 80, (it) => {
+        if (Math.abs(it.x - car.x) > 70 || Math.abs(it.y - car.y) > 70) return;
+        const h = it.poly ? G.circlePoly(car.x, car.y, car.r, it.poly) : G.dist(it.x, it.y, car.x, car.y) < car.r + 4 ? { nx: (car.x - it.x) / (G.dist(it.x, it.y, car.x, car.y) || 1), ny: (car.y - it.y) / (G.dist(it.x, it.y, car.x, car.y) || 1), depth: car.r + 4 - G.dist(it.x, it.y, car.x, car.y) } : null;
+        if (h) hits.push(h);
+      });
+      const bh = G.circlePoly(car.x, car.y, car.r, BHS_BUILDING);
+      if (bh) hits.push(bh);
+      const td = G.dist(car.x, car.y, TENT.x, TENT.y);
+      if (td < TENT.r + car.r) hits.push({ nx: (car.x - TENT.x) / (td || 1), ny: (car.y - TENT.y) / (td || 1), depth: TENT.r + car.r - td });
       for (const c of CLOSURES) {
         if (Math.abs(c.p.x - car.x) > 120 || Math.abs(c.p.y - car.y) > 120) continue;
         const h = G.circlePoly(car.x, car.y, car.r, c.poly);
@@ -446,6 +475,7 @@ G.scenes = G.scenes || {};
     }
     car.x = G.clamp(car.x, car.r, W - car.r);
     car.y = G.clamp(car.y, car.r, H - car.r);
+    this.updateOffRoad(dt);
 
     if (CANYON) {
       const n = M.nearest(car.x, car.y);
@@ -489,6 +519,62 @@ G.scenes = G.scenes || {};
     if (this.lastLand) { this.lastLand.t -= dt; if (this.lastLand.t <= 0) this.lastLand = null; }
     this.fx.update(dt);
     this.floaters.update(dt);
+  };
+
+  // Off the asphalt: a curb thump, a sidewalk rattle, and on grass, drag, flying sod and ruts.
+  City.updateOffRoad = function (dt) {
+    const car = this.car;
+    const n = M.nearest(car.x, car.y);
+    const e = n ? n.d - n.road.hw : 0;
+    const surface = e <= 0 ? 'road' : e <= SW ? 'sidewalk' : 'grass';
+    if (surface !== 'road' && this.surface === 'road' && car.speed > 60 && !car.airborne) {
+      G.audio.play('bonk');
+      car.wob = Math.max(car.wob, 0.5);
+      car.wobT = 0;
+    }
+    this.surface = surface;
+    if (surface !== 'grass' || car.airborne) { this.lastRut = null; return; }
+    car.vx *= Math.exp(-1.1 * dt);
+    car.vy *= Math.exp(-1.1 * dt);
+    if (car.speed < 8) return;
+    // ruts from both rear wheels
+    const fx = Math.sin(car.a), fy = -Math.cos(car.a), rx = Math.cos(car.a), ry = Math.sin(car.a);
+    const wheels = [-11, 11].map((o) => [car.x - fx * 14 + rx * o, car.y - fy * 14 + ry * o]);
+    if (!this.lastRut) { this.lastRut = wheels; return; }
+    if (G.dist(wheels[0][0], wheels[0][1], this.lastRut[0][0], this.lastRut[0][1]) < 6) return;
+    wheels.forEach((w, i) => {
+      this.tracks.push([this.lastRut[i][0], this.lastRut[i][1], w[0], w[1]]);
+      this.trackCount++;
+    });
+    if (this.tracks.length > TRACK_MAX) this.tracks.splice(0, this.tracks.length - TRACK_MAX);
+    this.lastRut = wheels;
+    this.sodT -= dt;
+    if (car.speed > 70 && this.sodT <= 0) {
+      this.sodT = 0.07;
+      const [wx, wy] = wheels[Math.random() < 0.5 ? 0 : 1];
+      this.fx.burst(wx, wy, 3, { color: ['#4c8a3c', '#6b4a2f', '#3a7034', '#7b5a3a'], speed: 90, life: 0.6, size: 4, vz: 120 });
+    }
+    this.turfed = (this.turfed || 0) + car.speed * dt;
+    if (this.turfed > 600) {
+      this.turfed = 0;
+      this.floaters.add(car.x, car.y - 30, G.pick(QUIPS_LAWN), '#9bdc6a', 1.4, 15);
+      if (!G.stats.lawnCommittee) { G.stats.lawnCommittee = true; G.formCommittee('Lawn Restoration Working Group'); }
+    }
+  };
+
+  City.drawTracks = function (ctx, v) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(92,64,38,0.75)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for (const [x0, y0, x1, y1] of this.tracks) {
+      if (x1 < v.x0 || x1 > v.x1 || y1 < v.y0 || y1 > v.y1) continue;
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+    }
+    ctx.stroke();
+    ctx.restore();
   };
 
   // Space: snap onto the nearest centerline, facing whichever way along the road is closer to the current heading.
@@ -718,6 +804,7 @@ G.scenes = G.scenes || {};
     this.drawZones(ctx, v);
     const vis = M.roads.filter((r) => r.bbox[0] - 90 < v.x1 && r.bbox[2] + 90 > v.x0 && r.bbox[1] - 90 < v.y1 && r.bbox[3] + 90 > v.y0);
     this.drawRoads(ctx, v, vis);
+    this.drawTracks(ctx, v);
     M.chunkItems(v.x0, v.y0, v.x1, v.y1, (it) => {
       if (it.x < v.x0 - 40 || it.x > v.x1 + 40 || it.y < v.y0 - 40 || it.y > v.y1 + 40) return;
       if (it.kind === 'house') drawHouse(ctx, it);
