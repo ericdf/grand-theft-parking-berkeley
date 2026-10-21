@@ -1,5 +1,5 @@
-// First-person view of the city: the same street grid, scenery and game state as the top-down
-// view, rendered from the driver's seat with three.js. Loaded on demand by js/fpview.js.
+// 3D chase-camera view of the city: the same street grid, scenery and game state as the top-down
+// view, rendered from just behind the car with three.js. Loaded on demand by js/fpview.js.
 //
 // World mapping: map (x, y) in px → three (x, height, y). Heading `a` (0 = north, clockwise)
 // becomes rotation.y = -a for anything modeled facing -z.
@@ -14,7 +14,6 @@ const G = window.G;
 const M = G.CityMap;
 const W = M.W, H = M.H, SW = M.SW;
 
-const EYE = 13;          // driver's eye height (px, at the car's scale)
 const NEAR_SPAN = 1600;  // world px covered by the sharp ground layer
 const NEAR_TEX = 2048;
 const FAR_SCALE = 0.4;   // texels per world px on the whole-map layer
@@ -626,23 +625,109 @@ export function create() {
     routeMesh.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   }
 
-  // ---------- the car, from inside: the hood (wheel and gauges are 2D, below) ----------
-  const cockpit = new THREE.Group();
-  camera.add(cockpit);
-  const hoodMat = lambert('#e9a23b');
-  // the hood sits ~3.5px below eye level, so it has to be close to fill the bottom of the view
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(12, 0.8, 7), hoodMat);
-  hood.position.set(1, -4, -6);
-  hood.rotation.x = 0.08;
-  const rust = new THREE.Mesh(new THREE.CircleGeometry(0.6, 10).rotateX(-Math.PI / 2), lambert('#a5561f'));
-  rust.position.set(3.5, -3.55, -7.6);
-  rust.rotation.x = 0.08;
-  cockpit.add(hood, rust);
+  // ---------- the player's car (forward = -z), as battered as its top-down sprite ----------
+  const PLATE = 'STUDYIT';
+  const plateTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#1b1b1b';
+    G.rr(x, 0, 0, 256, 128, 14);
+    x.fill();
+    x.fillStyle = '#f7f7f2';
+    G.rr(x, 8, 8, 240, 112, 10);
+    x.fill();
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillStyle = '#c8102e';
+    x.font = 'italic 700 22px Georgia, "Times New Roman", serif';
+    x.fillText('California', 128, 24);
+    x.fillStyle = '#1a2a6c';
+    x.font = G.condensed(62);
+    x.fillText(PLATE, 128, 72);
+    x.fillStyle = '#fff';
+    x.font = G.font(11, 800);
+    x.fillText('BERKELEY · A NUCLEAR-FREE ZONE', 128, 120);
+    return canvasTex(c);
+  })();
+  const stickerTex = canvasTex(textCanvas(['I BRAKE FOR', 'PUBLIC COMMENT'], { bg: '#2a9d8f', color: '#fff', border: null, size: 9 }));
+  const bodyMat = lambert('#e9a23b');
+  const carObj = new THREE.Group();
+  const carBody = new THREE.Group(); // squashes and tilts; the shadow stays on the ground
+  carObj.add(carBody);
+  {
+    const glass = lambert('#26415e', { emissive: '#0c1622' });
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(26, 9, 46), bodyMat);
+    lower.position.y = 8;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(22, 8, 22), [glass, glass, bodyMat, bodyMat, glass, glass]);
+    cabin.position.set(0, 16.5, 3);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(22.4, 0.8, 20), bodyMat);
+    roof.position.set(0, 20.6, 3);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.6, 8, 14), lambert('#4fa3c7')); // mismatched replacement door
+    door.position.set(-13.1, 8, 1);
+    carBody.add(lower, cabin, roof, door);
+    [[6, -17, 2.5], [-6, 15, 2], [8, 12, 1.6], [-4, -19, 1.4]].forEach(([rx, rz, r]) => {
+      const spot = new THREE.Mesh(new THREE.CircleGeometry(r, 10).rotateX(-Math.PI / 2), lambert('#a5561f'));
+      spot.position.set(rx, 12.6, rz);
+      carBody.add(spot);
+    });
+    const crack = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.4), basic('#cfe6ff'));
+    crack.position.set(-4, 16.5, 3 - 11.05);
+    crack.rotation.set(0, Math.PI, 0.6);
+    carBody.add(crack);
+    [-9, 9].forEach((lx) => {
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 0.6), basic('#d62828'));
+      tail.position.set(lx, 10, 23.1);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 0.6), basic('#fff6c8'));
+      head.position.set(lx, 10, -23.1);
+      carBody.add(tail, head);
+    });
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(27, 2.4, 2), lambert('#555'));
+    bumper.position.set(0, 4.6, 23);
+    carBody.add(bumper);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), basic('#fff', { map: plateTex }));
+    plate.position.set(0, 8.2, 23.45);
+    const sticker = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), basic('#fff', { map: stickerTex }));
+    sticker.position.set(-8.5, 4.6, 24.05);
+    carBody.add(plate, sticker);
+  }
+  const wheels = [];
+  {
+    const tire = new THREE.CylinderGeometry(4.5, 4.5, 4, 14).rotateZ(Math.PI / 2);
+    const tireMat = lambert('#1b1b1b');
+    const hubMat = lambert('#9a9a9a');
+    [[-12, -14, true], [12, -14, true], [-12, 14, false], [12, 14, false]].forEach(([wx, wz, front]) => {
+      const w = new THREE.Group();
+      const tr = new THREE.Group();
+      tr.add(new THREE.Mesh(tire, tireMat));
+      const hub = new THREE.Mesh(new THREE.BoxGeometry(4.2, 5, 1.2), hubMat);
+      tr.add(hub);
+      w.add(tr);
+      w.position.set(wx, 4.5, wz);
+      w.userData = { front, roll: tr };
+      carBody.add(w);
+      wheels.push(w);
+    });
+  }
+  const shadowTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(32, 32, 4, 32, 32, 32);
+    g.addColorStop(0, 'rgba(0,0,0,0.55)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 64, 64);
+    return canvasTex(c);
+  })();
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(40, 60).rotateX(-Math.PI / 2), basic('#fff', { map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
+  scene.add(carObj, shadow);
 
   // ---------- per-frame ----------
   const proj = new THREE.Vector3();
   let lastW = 0, lastH = 0, lastDpr = 0;
-  let smoothSteer = 0;
+  let smoothSteer = 0, camYaw = null, lastT = 0, wheelRoll = 0;
+  const CHASE_BACK = 88, CHASE_UP = 34;
   function project(x, h, y, vw, vh) {
     proj.set(x, h, y).project(camera);
     if (proj.z > 1 || proj.z < -1) return null;
@@ -661,18 +746,37 @@ export function create() {
     }
     const calm = G.settings.reducedMotion ? 0.25 : 1;
 
-    // camera: the driver's seat, slightly left of center
+    const now = performance.now() / 1000;
+    const dt = G.clamp(now - (lastT || now), 0, 0.1);
+    lastT = now;
     const fx = Math.sin(car.a), fy = -Math.cos(car.a);
-    const rx = Math.cos(car.a), ry = Math.sin(car.a);
-    const shake = G.hud.shake * calm * 0.35;
-    camera.position.set(car.x + fx * 4 - rx * 3 + (Math.random() - 0.5) * shake, EYE + car.z * 0.9 + (Math.random() - 0.5) * shake, car.y + fy * 4 - ry * 3);
+
+    // the car: pothole launches lift it, landings squash it, collisions flash it
     const wob = car.wob * Math.sin(car.wobT * 28);
-    camera.rotation.y = -car.a;
-    camera.rotation.x = G.clamp(car.vz * 0.0011, -0.35, 0.35) * calm - 0.04 + wob * 0.03 * calm;
-    camera.rotation.z = G.clamp(-car.spin * 0.025, -0.12, 0.12) * calm + wob * 0.04 * calm;
     const steer = (G.input.right ? 1 : 0) - (G.input.left ? 1 : 0);
-    smoothSteer += (steer - smoothSteer) * 0.2;
-    hoodMat.color.set(car.hitFlash > 0 ? '#ffe2b0' : '#e9a23b');
+    smoothSteer += (steer - smoothSteer) * Math.min(1, dt * 12);
+    place(carObj, car.x, car.y, car.z, car.a);
+    carBody.rotation.x = G.clamp(car.vz * 0.0009, -0.3, 0.3);
+    carBody.scale.set(1 + wob * 0.08, 1 - wob * 0.12, 1);
+    bodyMat.color.set(car.hitFlash > 0 ? '#ffffff' : '#e9a23b');
+    wheelRoll -= (car.fwd * dt) / 4.5;
+    wheels.forEach((w) => { w.rotation.y = w.userData.front ? -smoothSteer * 0.45 : 0; w.userData.roll.rotation.x = wheelRoll; });
+    shadow.position.set(car.x, 0.5, car.y);
+    shadow.rotation.y = -car.a;
+    const sh = 1 + car.z / 90;
+    shadow.scale.set(sh, 1, sh);
+    shadow.material.opacity = 1 / sh;
+
+    // chase camera: behind and above, swinging round after the car rather than locked to it
+    if (camYaw === null || G.game.fade >= 1) camYaw = car.a;
+    camYaw += G.wrapAngle(car.a - camYaw) * Math.min(1, dt * (car.airborne ? 1.2 : 3.5));
+    const cfx = Math.sin(camYaw), cfy = -Math.cos(camYaw);
+    const shake = G.hud.shake * calm * 0.35;
+    camera.position.set(
+      car.x - cfx * CHASE_BACK + (Math.random() - 0.5) * shake,
+      CHASE_UP + car.z * 0.6 + (Math.random() - 0.5) * shake,
+      car.y - cfy * CHASE_BACK);
+    camera.lookAt(car.x + cfx * 90, 6 + car.z * 0.8, car.y + cfy * 90);
 
     // sharp ground layer, centered ahead of the car
     const ncx = car.x + fx * 420, ncy = car.y + fy * 420;
@@ -753,12 +857,12 @@ export function create() {
       G.outlineText(ctx, f.text, q.sx, q.sy, f.color, '#000', 4);
     }
     ctx.globalAlpha = 1;
-    drawWindshield(ctx, vw, vh, car);
+    drawSpeedo(ctx, vw, vh, car);
     drawGuide(ctx, vw, vh, C);
     C.drawHud(ctx, vw, vh);
   }
 
-  // GPS arrow under the mirror: straight up means straight ahead
+  // GPS arrow at the top of the screen: straight up means straight ahead
   function drawGuide(ctx, vw, vh, C) {
     if (!C.route || C.route.length < 2 || C.parkSeq >= 0) return;
     const car = C.car;
@@ -766,7 +870,7 @@ export function create() {
     if (G.dist(car.x, car.y, wp[0], wp[1]) < 70) return;
     const rel = G.wrapAngle(Math.atan2(wp[0] - car.x, -(wp[1] - car.y)) - car.a);
     ctx.save();
-    ctx.translate(vw / 2, vh * 0.075 + 62);
+    ctx.translate(vw / 2, 86);
     ctx.fillStyle = 'rgba(15,20,30,0.6)';
     ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
     ctx.rotate(rel);
@@ -781,60 +885,7 @@ export function create() {
     ctx.restore();
   }
 
-  function drawWindshield(ctx, vw, vh, car) {
-    // roof edge and A-pillars
-    ctx.fillStyle = '#1d1a17';
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(vw, 0); ctx.lineTo(vw, vh * 0.04);
-    ctx.quadraticCurveTo(vw / 2, vh * 0.075, 0, vh * 0.04);
-    ctx.fill();
-    const pw = Math.max(18, vw * 0.045);
-    ctx.beginPath(); ctx.moveTo(0, vh * 0.03); ctx.lineTo(pw, vh * 0.05); ctx.lineTo(pw * 0.2, vh * 0.75); ctx.lineTo(0, vh * 0.75); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(vw, vh * 0.03); ctx.lineTo(vw - pw, vh * 0.05); ctx.lineTo(vw - pw * 0.2, vh * 0.75); ctx.lineTo(vw, vh * 0.75); ctx.fill();
-    // rear-view mirror with an air freshener shaped like a pothole
-    const mx = vw / 2, my = vh * 0.075;
-    ctx.fillStyle = '#111';
-    ctx.fillRect(mx - 2, 0, 4, my);
-    G.rr(ctx, mx - 60, my, 120, 26, 6);
-    ctx.fill();
-    ctx.fillStyle = '#5c7a8f';
-    G.rr(ctx, mx - 55, my + 4, 110, 18, 4);
-    ctx.fill();
-    const sw = Math.sin((City.t || 0) * 2.2) * 0.25 - car.spin * 0.05;
-    ctx.save();
-    ctx.translate(mx + 30, my + 26);
-    ctx.rotate(sw);
-    ctx.strokeStyle = '#ddd';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 16); ctx.stroke();
-    ctx.fillStyle = '#3a332c';
-    ctx.beginPath(); ctx.ellipse(0, 24, 9, 7, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#7CFC00';
-    ctx.font = G.font(5);
-    ctx.textAlign = 'center';
-    ctx.fillText('PINE', 0, 24);
-    ctx.restore();
-    // windshield crack, true to the car's top-down sprite
-    ctx.strokeStyle = 'rgba(220,240,255,0.7)';
-    ctx.lineWidth = 1.5;
-    const cx0 = vw * 0.18, cy0 = vh * 0.12;
-    ctx.beginPath();
-    ctx.moveTo(cx0, cy0); ctx.lineTo(cx0 + 40, cy0 + 26); ctx.lineTo(cx0 + 28, cy0 + 58); ctx.lineTo(cx0 + 52, cy0 + 90);
-    ctx.moveTo(cx0 + 40, cy0 + 26); ctx.lineTo(cx0 + 78, cy0 + 34);
-    ctx.stroke();
-    // steering wheel, mostly below the frame
-    const wr = Math.min(vw * 0.3, vh * 0.32);
-    ctx.save();
-    ctx.translate(vw / 2 - wr * 0.15, vh + wr * 0.45);
-    ctx.rotate(smoothSteer * 1.4);
-    ctx.strokeStyle = '#141414';
-    ctx.lineWidth = Math.max(14, wr * 0.13);
-    ctx.beginPath(); ctx.arc(0, 0, wr, 0, Math.PI * 2); ctx.stroke();
-    ctx.lineWidth = Math.max(10, wr * 0.09);
-    ctx.beginPath(); ctx.moveTo(-wr, 0); ctx.lineTo(wr, 0); ctx.stroke();
-    ctx.fillStyle = '#ffd23f';
-    ctx.fillRect(-4, -wr - ctx.lineWidth * 0.75, 8, ctx.lineWidth * 1.5);
-    ctx.restore();
+  function drawSpeedo(ctx, vw, vh, car) {
     // speedometer
     const mph = Math.round(car.speed * 0.21);
     let gx = vw / 2, gy = vh - 14 - (G.settings.radio ? 24 : 0);

@@ -114,7 +114,7 @@ G.settings = {
   radio: true,
   hazards: true,
   minimap: true,
-  view: 'top', // 'top' or 'fp' (first person, city only)
+  view: 'top', // 'top' or 'fp' (3D chase view, city only)
 };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);

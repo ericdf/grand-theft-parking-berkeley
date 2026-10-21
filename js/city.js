@@ -308,7 +308,7 @@ G.scenes = G.scenes || {};
   // ---------- scene ----------
   const City = {};
   G.scenes.city = City;
-  // world geometry the first-person renderer (js/fp3d.js) builds its 3D city from
+  // world geometry the 3D renderer (js/fp3d.js) builds its 3D city from
   City.world = { potholes, extraSigns, closures: CLOSURES, canyon: CANYON, tent: TENT, cityHall: CH, rubble, rubbleCenter: RUBBLE_C };
 
   City.enter = function (opts = {}) {
@@ -768,7 +768,7 @@ G.scenes = G.scenes || {};
     for (const c of CLOSURES) this.drawClosure(ctx, c, v);
   };
 
-  // Screen-space HUD, shared by the top-down and first-person views. Expects an identity (×dpr) transform.
+  // Screen-space HUD, shared by the top-down and 3D views. Expects an identity (×dpr) transform.
   City.drawHud = function (ctx, vw, vh) {
     G.hud.drawObjective(ctx, vw);
     G.hud.drawStars(ctx, vw);
