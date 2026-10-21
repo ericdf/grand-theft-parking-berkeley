@@ -602,6 +602,32 @@ export function create() {
   chMarker.add(chLabel);
   scene.add(place(chMarker, CH.x, CH.y, 0));
 
+  // ---------- tire ruts in the lawns (a ring buffer of quads, appended as City.tracks grows) ----------
+  const RUTS = 3000;
+  const rutPos = new Float32Array(RUTS * 18);
+  const rutGeo = new THREE.BufferGeometry();
+  rutGeo.setAttribute('position', new THREE.BufferAttribute(rutPos, 3));
+  const rutMesh = new THREE.Mesh(rutGeo, basic('#5c4026', { transparent: true, opacity: 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  rutMesh.frustumCulled = false;
+  scene.add(rutMesh);
+  let rutsFor = null, rutsDrawn = 0;
+  function updateRuts(C) {
+    if (rutsFor !== C.tracks) { rutsFor = C.tracks; rutsDrawn = 0; rutPos.fill(0); rutGeo.attributes.position.needsUpdate = true; }
+    const fresh = Math.min(C.trackCount - rutsDrawn, C.tracks.length);
+    if (fresh <= 0) return;
+    const hw = 2.5;
+    for (let k = C.tracks.length - fresh; k < C.tracks.length; k++) {
+      const [ax, ay, bx, by] = C.tracks[k];
+      const L = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = (-(by - ay) / L) * hw, ny = ((bx - ax) / L) * hw;
+      rutPos.set([ax + nx, 0.25, ay + ny, bx + nx, 0.25, by + ny, bx - nx, 0.25, by - ny, ax + nx, 0.25, ay + ny, bx - nx, 0.25, by - ny, ax - nx, 0.25, ay - ny], (rutsDrawn % RUTS) * 18);
+      rutsDrawn++;
+    }
+    rutsDrawn = Math.max(rutsDrawn, C.trackCount);
+    rutGeo.setDrawRange(0, Math.min(rutsDrawn, RUTS) * 6);
+    rutGeo.attributes.position.needsUpdate = true;
+  }
+
   // ---------- the GPS route, laid on the road like a racing line ----------
   const routeMesh = new THREE.Mesh(new THREE.BufferGeometry(), basic('#ffd23f', { transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
   routeMesh.frustumCulled = false;
@@ -810,6 +836,7 @@ export function create() {
     const ncx = car.x + fx * 420, ncy = car.y + fy * 420;
     if (G.dist(ncx, ncy, near.x, near.y) > 240 || near.key !== spotKey()) refreshNear(ncx, ncy);
     updateRouteLine(C);
+    updateRuts(C);
 
     updateStoreSigns(car);
     updateSpots(t);
