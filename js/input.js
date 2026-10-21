@@ -11,7 +11,7 @@
   const GAME_KEYS = new Set([
     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
     'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'KeyM', 'KeyP', 'Escape',
-    'Digit1', 'Digit2', 'Digit3', 'KeyC', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter',
+    'Digit1', 'Digit2', 'Digit3', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter',
   ]);
 
   Object.defineProperties(I, {
@@ -19,13 +19,14 @@
     back: { get() { return !!(this.down.ArrowDown || this.down.KeyS || this.touch.down); } },
     left: { get() { return !!(this.down.ArrowLeft || this.down.KeyA || this.touch.left); } },
     right: { get() { return !!(this.down.ArrowRight || this.down.KeyD || this.touch.right); } },
-    hand: { get() { return !!(this.down.Space || this.touch.hand); } },
+    hand: { get() { return !!(this.down.ShiftLeft || this.down.ShiftRight || this.touch.hand); } },
   });
 
   I.was = function (...codes) {
     return codes.some((c) => this.pressed[c]);
   };
   I.interact = function () { return this.was('Enter', 'KeyE', 'NumpadEnter'); };
+  I.resetCar = function () { return this.was('Space'); };
   I.endFrame = function () { this.pressed = {}; };
   I.clear = function () {
     this.down = {};
@@ -67,6 +68,7 @@
         G.audio.unlock();
         if (k === 'interact') { I.pressed.KeyE = true; return; }
         if (k === 'map') { I.pressed.KeyM = true; return; }
+        if (k === 'reset') { I.pressed.Space = true; return; }
         I.touch[k] = true;
         btn.classList.add('on');
       };

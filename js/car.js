@@ -93,6 +93,14 @@
       if (!this.airborne && this.ctrl >= 1 && this.chain) { this.chain = 0; this.chainAir = 0; }
     }
 
+    // Plonk the car down at (x, y) facing `a`, fully stopped and un-bounced.
+    resetTo(x, y, a) {
+      this.x = x; this.y = y; this.a = a;
+      this.vx = 0; this.vy = 0; this.spin = 0;
+      this.z = 0; this.vz = 0; this.airT = 0;
+      this.ctrl = 1; this.chain = 0; this.chainAir = 0; this.wob = 0.6; this.wobT = 0;
+    }
+
     // Send the car into a pothole launch. Returns airtime in seconds.
     launch(px, py) {
       const sp = this.speed;

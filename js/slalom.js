@@ -184,6 +184,13 @@
       if (this.cd > 4.2) G.game.go('finale');
     }
 
+    if (G.input.resetCar() && this.state === 'race') {
+      // back onto the lane center, pointed down MLK
+      const rs = -car.y;
+      car.resetTo(BASE + this.offset(rs), car.y, 0);
+      G.audio.play('whoosh');
+      this.floaters.add(car.x, car.y - 30, 'RE-CENTERED', '#9be7ff', 1, 13);
+    }
     car.update(dt, G.input);
     const s = -car.y;
 

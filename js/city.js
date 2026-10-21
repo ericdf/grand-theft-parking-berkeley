@@ -343,7 +343,7 @@ G.scenes = G.scenes || {};
       this.car = new G.Car(p.x - p.dy * 26, p.y + p.dx * 26, Math.atan2(p.dx, -p.dy)); // right-hand lane
       G.hud.banner('MISSION START', 'POTHOLE PARADISE — DRIVE TO HOPKINS', { sting: 'start', dur: 3 });
       G.hud.setObjective('PARK ON HOPKINS', 'Drive to Hopkins & Monterey. Follow the yellow arrow & minimap route. Mind the craters.');
-      G.hud.toast('ARROWS / WASD drive · SPACE handbrake · M map · P pause', { dur: 6, color: '#9be7ff' });
+      G.hud.toast('ARROWS / WASD drive · SPACE reset to road · SHIFT handbrake · M map · P pause', { dur: 6, color: '#9be7ff' });
     } else if (this.phase === 'hopkins') {
       const p = M.pathPoint(hopkins, sMonterey + 70);
       this.car = new G.Car(p.x, p.y, Math.atan2(p.dx, -p.dy));
@@ -407,6 +407,7 @@ G.scenes = G.scenes || {};
     this.t += dt;
     const car = this.car;
     const inp = G.input;
+    if (inp.resetCar() && !car.locked) this.resetCarToRoad();
     car.update(dt, inp);
 
     const hit = car.checkPotholes(potholes);
@@ -486,6 +487,20 @@ G.scenes = G.scenes || {};
     if (this.lastLand) { this.lastLand.t -= dt; if (this.lastLand.t <= 0) this.lastLand = null; }
     this.fx.update(dt);
     this.floaters.update(dt);
+  };
+
+  // Space: snap onto the nearest centerline, facing whichever way along the road is closer to the current heading.
+  City.resetCarToRoad = function () {
+    const car = this.car;
+    const n = M.nearest(car.x, car.y);
+    if (!n) return;
+    const p = M.pointAt(n.road, n.along);
+    let a = Math.atan2(p.dx, -p.dy);
+    if (Math.abs(G.wrapAngle(a - car.a)) > Math.PI / 2) a = G.wrapAngle(a + Math.PI);
+    this.fx.burst(car.x, car.y, 10, { type: 'poof', color: ['#fff', '#ddd'], speed: 60, life: 0.5, size: 7 });
+    car.resetTo(p.x, p.y, a);
+    G.audio.play('whoosh');
+    this.floaters.add(p.x, p.y - 30, 'RE-CENTERED', '#9be7ff', 1, 13);
   };
 
   City.updateClutter = function (dt) {
