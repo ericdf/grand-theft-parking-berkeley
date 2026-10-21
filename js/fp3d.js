@@ -626,7 +626,7 @@ export function create() {
   }
 
   // ---------- the player's car (forward = -z), as battered as its top-down sprite ----------
-  const PLATE = 'STUDYIT';
+  const PLATE = 'PCI 0'; // Pavement Condition Index: zero means failed
   const plateTex = (() => {
     const c = document.createElement('canvas');
     c.width = 256; c.height = 128;
