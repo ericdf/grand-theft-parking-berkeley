@@ -296,6 +296,8 @@ body.has-touch:not([data-scene="title"]):not([data-scene="council"]):not([data-s
 }
 body.has-touch #hud-dom { bottom: auto; top: 76px; }
 #touch .pad { display: flex; gap: 10px; align-items: flex-end; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; }
+#touch .pad.left { flex-wrap: wrap; width: 154px; }
+#touch .pad.left button.small { margin-right: 92px; } /* HB gets its own row above the steering arrows */
 #touch .pad.right { flex-wrap: wrap; justify-content: flex-end; max-width: 190px; }
 #touch button {
   width: 72px;
