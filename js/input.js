@@ -54,6 +54,9 @@
   window.addEventListener('keyup', (e) => { I.down[e.code] = false; });
   window.addEventListener('blur', () => I.clear());
   window.addEventListener('pointerdown', () => G.audio.unlock(), { capture: true });
+  // iOS Safari ignores user-scalable=no; block its pinch gestures and double-tap zoom outright
+  ['gesturestart', 'gesturechange'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
+  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
   // ---------- touch controls ----------
   I.setupTouch = function () {
