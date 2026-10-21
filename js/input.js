@@ -10,7 +10,7 @@
 
   const GAME_KEYS = new Set([
     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
-    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'KeyM', 'KeyP', 'Escape',
+    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'KeyM', 'KeyP', 'KeyV', 'Escape',
     'Digit1', 'Digit2', 'Digit3', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter',
   ]);
 
@@ -68,6 +68,7 @@
         G.audio.unlock();
         if (k === 'interact') { I.pressed.KeyE = true; return; }
         if (k === 'map') { I.pressed.KeyM = true; return; }
+        if (k === 'view') { I.pressed.KeyV = true; return; }
         if (k === 'reset') { I.pressed.Space = true; return; }
         I.touch[k] = true;
         btn.classList.add('on');

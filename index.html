@@ -35,12 +35,14 @@
           <tr><th><kbd>Shift</kbd></th><td>Handbrake / sharp turn</td></tr>
           <tr><th><kbd>E</kbd> / <kbd>Enter</kbd></th><td>Interact with mission markers</td></tr>
           <tr><th><kbd>M</kbd></th><td>Toggle minimap</td></tr>
+          <tr><th><kbd>V</kbd></th><td>Switch top-down / 3D chase view (city)</td></tr>
           <tr><th><kbd>P</kbd> / <kbd>Esc</kbd></th><td>Pause</td></tr>
           <tr><th>Mouse / tap / <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></th><td>Dialogue choices &amp; menus</td></tr>
         </tbody>
       </table>
       <div class="btn-row">
         <button id="startBtn" class="btn big" type="button" data-autofocus>START <span class="hint">(Enter)</span></button>
+        <button id="startFpBtn" class="btn big" type="button">3D VIEW</button>
         <button id="optionsBtn" class="btn" type="button">Options</button>
       </div>
       <p class="fine">A parody. All characters are fictional archetypes. Not affiliated with any game publisher, or with any city council, which would first need to form a committee.</p>
@@ -73,6 +75,7 @@
         <label><input type="checkbox" id="optReduced"> Reduced motion (no shake, gentler effects)</label>
         <label><input type="checkbox" id="optRadio"> KPTH talk-radio ticker</label>
         <label><input type="checkbox" id="optMinimap"> Minimap</label>
+        <label><input type="checkbox" id="optFp"> 3D chase view in the city (V)</label>
         <label><input type="checkbox" id="optHazards"> Slalom secondary hazards (potholes, cyclists, traffic)</label>
       </div>
       <div class="btn-row"><button id="optionsDone" class="btn big" type="button" data-autofocus>Done</button></div>
@@ -126,6 +129,7 @@
     <div class="pad right">
       <button data-t="interact" type="button" tabindex="-1" class="small">E</button>
       <button data-t="reset" type="button" tabindex="-1" class="small" title="Reset to road">⟲</button>
+      <button data-t="view" type="button" tabindex="-1" class="small" title="Switch view">👁</button>
       <button data-t="down" type="button" tabindex="-1">▼</button>
       <button data-t="up" type="button" tabindex="-1">▲</button>
     </div>
@@ -142,6 +146,7 @@
   <script src="js/streets-data.js"></script>
   <script src="js/citymap.js"></script>
   <script src="js/city.js"></script>
+  <script src="js/fpview.js"></script>
   <script src="js/council.js"></script>
   <script src="js/slalom.js"></script>
   <script src="js/finale.js"></script>

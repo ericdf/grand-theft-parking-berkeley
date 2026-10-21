@@ -308,6 +308,8 @@ G.scenes = G.scenes || {};
   // ---------- scene ----------
   const City = {};
   G.scenes.city = City;
+  // world geometry the 3D renderer (js/fp3d.js) builds its 3D city from
+  City.world = { potholes, extraSigns, closures: CLOSURES, canyon: CANYON, tent: TENT, cityHall: CH, rubble, rubbleCenter: RUBBLE_C };
 
   City.enter = function (opts = {}) {
     this.phase = opts.phase || 'drive1';
@@ -703,6 +705,7 @@ G.scenes = G.scenes || {};
 
   // ---------- rendering ----------
   City.render = function (ctx, vw, vh, dpr) {
+    if (G.fpView && G.fpView.active()) { G.fpView.render(this, ctx, vw, vh, dpr); return; }
     const zoom = (this.zoom = G.clamp(Math.min(vw, vh) / 720, 0.55, 1.5));
     const shx = (Math.random() - 0.5) * G.hud.shake, shy = (Math.random() - 0.5) * G.hud.shake;
     const cx = this.camX, cy = this.camY;
@@ -722,13 +725,7 @@ G.scenes = G.scenes || {};
       else drawStore(ctx, it, t);
     });
     this.drawLandmarks(ctx, v);
-
-    if (CANYON && CANYON.mid.x > v.x0 - 400 && CANYON.mid.x < v.x1 + 400 && CANYON.mid.y > v.y0 - 400 && CANYON.mid.y < v.y1 + 400) this.drawCanyon(ctx, t);
-    for (const p of potholes) {
-      if (p.x < v.x0 || p.x > v.x1 || p.y < v.y0 || p.y > v.y1) continue;
-      G.drawPothole(ctx, p, t);
-    }
-    for (const c of CLOSURES) this.drawClosure(ctx, c, v);
+    this.drawHazards(ctx, v);
     this.drawSpots(ctx);
     for (const c of this.cones) {
       if (c.scale <= 0 || c.x < v.x0 || c.x > v.x1 || c.y < v.y0 || c.y > v.y1) continue;
@@ -758,6 +755,21 @@ G.scenes = G.scenes || {};
     this.floaters.draw(ctx);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.drawHud(ctx, vw, vh);
+  };
+
+  // Canyon, potholes and road closures: everything painted on (or dug into) the asphalt.
+  City.drawHazards = function (ctx, v) {
+    if (CANYON && CANYON.mid.x > v.x0 - 400 && CANYON.mid.x < v.x1 + 400 && CANYON.mid.y > v.y0 - 400 && CANYON.mid.y < v.y1 + 400) this.drawCanyon(ctx, this.t);
+    for (const p of potholes) {
+      if (p.x < v.x0 || p.x > v.x1 || p.y < v.y0 || p.y > v.y1) continue;
+      G.drawPothole(ctx, p, this.t);
+    }
+    for (const c of CLOSURES) this.drawClosure(ctx, c, v);
+  };
+
+  // Screen-space HUD, shared by the top-down and 3D views. Expects an identity (×dpr) transform.
+  City.drawHud = function (ctx, vw, vh) {
     G.hud.drawObjective(ctx, vw);
     G.hud.drawStars(ctx, vw);
     this.drawAirHud(ctx, vw);

@@ -170,6 +170,7 @@
     $('optRadio').checked = s.radio;
     $('optHazards').checked = s.hazards;
     $('optMinimap').checked = s.minimap;
+    $('optFp').checked = s.view === 'fp';
   }
 
   function applySettings() {
@@ -182,7 +183,8 @@
   }
 
   function wireUi() {
-    $('startBtn').addEventListener('click', () => { G.audio.unlock(); game.newGame(); });
+    $('startBtn').addEventListener('click', () => { G.audio.unlock(); G.settings.view = 'top'; applySettings(); game.newGame(); });
+    $('startFpBtn').addEventListener('click', () => { G.audio.unlock(); G.settings.view = 'fp'; applySettings(); game.newGame(); });
     $('optionsBtn').addEventListener('click', () => ui.openOptions('title'));
     $('resumeBtn').addEventListener('click', () => game.setPaused(false));
     $('retryBtn').addEventListener('click', () => { game.setPaused(false); game.retry(); });
@@ -221,6 +223,7 @@
     bind('optRadio', 'radio', (el) => el.checked);
     bind('optHazards', 'hazards', (el) => el.checked);
     bind('optMinimap', 'minimap', (el) => el.checked);
+    bind('optFp', 'view', (el) => (el.checked ? 'fp' : 'top'));
     $('optSfx').addEventListener('change', () => G.audio.play('boing'));
     applySettings();
   }
@@ -258,12 +261,14 @@
         G.settings.minimap = !G.settings.minimap;
         G.saveSettings();
       }
+      if (!ui.modalOpen() && inp.was('KeyV') && game.sceneName === 'city') G.fpView.toggle();
       if (!game.paused) {
         G.hud.update(dt);
         if (!game.pending || game.fade < 1) game.scene.update(dt);
       }
       game.scene.render(ctx, w, h, dpr);
     }
+    G.fpView.endFrame();
     // fades
     if (game.fadeDir) {
       game.fade = G.clamp(game.fade + game.fadeDir * dt * 2.8, 0, 1);
@@ -293,6 +298,9 @@
     if (ui.isOpen('title') && (e.code === 'Enter' || e.code === 'NumpadEnter') && document.activeElement && document.activeElement.id !== 'optionsBtn') {
       e.preventDefault();
       G.audio.unlock();
+      if (document.activeElement && document.activeElement.id === 'startFpBtn') G.settings.view = 'fp';
+      else G.settings.view = 'top';
+      applySettings();
       game.newGame();
     }
   });
