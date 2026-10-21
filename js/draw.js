@@ -51,7 +51,7 @@
       ctx.fill();
     });
     // body
-    ctx.fillStyle = o.flash ? '#fff' : '#e9a23b';
+    ctx.fillStyle = o.flash ? '#fff' : '#c3ccd2'; // Prius silver
     G.rr(ctx, -13, -23, 26, 46, 7);
     ctx.fill();
     ctx.lineWidth = 2;

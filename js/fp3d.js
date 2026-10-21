@@ -651,44 +651,72 @@ export function create() {
     return canvasTex(c);
   })();
   const stickerTex = canvasTex(textCanvas(['I BRAKE FOR', 'PUBLIC COMMENT'], { bg: '#2a9d8f', color: '#fff', border: null, size: 9 }));
-  const bodyMat = lambert('#e9a23b');
+  const bodyMat = lambert('#c3ccd2'); // Prius silver
   const carObj = new THREE.Group();
   const carBody = new THREE.Group(); // squashes and tilts; the shadow stays on the ground
   carObj.add(carBody);
   {
+    // Prius wedge: side profiles in (f = forward, height), extruded across the car's width.
+    // f runs +23 (nose) to -23 (Kamm tail); world z = -f after the rotation.
     const glass = lambert('#26415e', { emissive: '#0c1622' });
-    const lower = new THREE.Mesh(new THREE.BoxGeometry(26, 9, 46), bodyMat);
-    lower.position.y = 8;
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(22, 8, 22), [glass, glass, bodyMat, bodyMat, glass, glass]);
-    cabin.position.set(0, 16.5, 3);
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(22.4, 0.8, 20), bodyMat);
-    roof.position.set(0, 20.6, 3);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.6, 8, 14), lambert('#4fa3c7')); // mismatched replacement door
-    door.position.set(-13.1, 8, 1);
-    carBody.add(lower, cabin, roof, door);
-    [[6, -17, 2.5], [-6, 15, 2], [8, 12, 1.6], [-4, -19, 1.4]].forEach(([rx, rz, r]) => {
+    const trim = lambert('#2b2b2b');
+    const side = (pts, width, mat) => {
+      const sh = new THREE.Shape(pts.map(([f, y]) => new THREE.Vector2(f, y)));
+      const g = new THREE.ExtrudeGeometry(sh, { depth: width - 2, bevelEnabled: true, bevelThickness: 1, bevelSize: 0.8, bevelSegments: 2, curveSegments: 4 });
+      g.translate(0, 0, -(width - 2) / 2).rotateY(Math.PI / 2);
+      return new THREE.Mesh(g, mat);
+    };
+    // lower body: low nose, long sloping hood, beltline rising to a cut-off tail with a spoiler lip
+    const lower = side([[23, 3.5], [23.8, 6], [23.2, 8.4], [17, 10.8], [9, 12.7], [-12, 13.8], [-19.5, 14.6], [-22.6, 16.6], [-23.4, 14], [-23.4, 6], [-22.8, 3.5]], 26, bodyMat);
+    // greenhouse: the raked windshield runs straight into a roof that peaks just behind the driver,
+    // then a long hatch slope down to the spoiler
+    const house = side([[9.4, 12.6], [-1.5, 22.8], [-4.5, 23.2], [-19.6, 16.4], [-19.6, 14.2]], 22, glass);
+    const roof = side([[-0.6, 22.6], [-1.8, 23.7], [-4.6, 24.1], [-12.5, 20.4], [-12.3, 19.7], [-4.6, 23.3], [-1.8, 22.9]], 22.6, bodyMat);
+    const bPillar = new THREE.Mesh(new THREE.BoxGeometry(22.4, 9.8, 1.4), bodyMat);
+    bPillar.position.set(0, 17.7, 1.6);
+    bPillar.rotation.x = 0.12;
+    const aPillars = [-1, 1].map((sx) => {
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(1, 0.9, 15), bodyMat);
+      pl.position.set(sx * 10.8, 17.7, -3.95);
+      pl.rotation.x = -Math.atan2(10.2, 10.9); // along the windshield rake
+      return pl;
+    });
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.6, 7.5, 13), lambert('#4fa3c7')); // mismatched replacement door
+    door.position.set(-13.2, 8.6, -2);
+    carBody.add(lower, house, roof, bPillar, ...aPillars, door);
+    // rust: two spots on the hood, one on the roof
+    [[6, 14, 11.3, 1.8, -0.21], [-5, 18, 10.3, 1.4, -0.34], [4, -8, 22.6, 1.3, 0.42]].forEach(([rx, f, y, r, tilt]) => {
       const spot = new THREE.Mesh(new THREE.CircleGeometry(r, 10).rotateX(-Math.PI / 2), lambert('#a5561f'));
-      spot.position.set(rx, 12.6, rz);
+      spot.position.set(rx, y + 0.9, -f);
+      spot.rotation.x = tilt;
       carBody.add(spot);
     });
-    const crack = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.4), basic('#cfe6ff'));
-    crack.position.set(-4, 16.5, 3 - 11.05);
-    crack.rotation.set(0, Math.PI, 0.6);
+    const crack = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.4), basic('#cfe6ff', { side: THREE.DoubleSide }));
+    crack.position.set(-4, 18.2, -4.4);
+    crack.rotation.set(-0.9, Math.PI, 0.6, 'YXZ');
     carBody.add(crack);
-    [-9, 9].forEach((lx) => {
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 0.6), basic('#d62828'));
-      tail.position.set(lx, 10, 23.1);
-      const head = new THREE.Mesh(new THREE.BoxGeometry(5, 2.5, 0.6), basic('#fff6c8'));
-      head.position.set(lx, 10, -23.1);
-      carBody.add(tail, head);
+    // the tail: a wide light bar across the hatch, the little lower window, and that high spoiler
+    const lightBar = new THREE.Mesh(new THREE.BoxGeometry(24, 2, 0.6), basic('#d62828'));
+    lightBar.position.set(0, 14, 24.3);
+    const lowerGlass = new THREE.Mesh(new THREE.BoxGeometry(16, 2.2, 0.5), glass);
+    lowerGlass.position.set(0, 11.5, 24.3);
+    const spoiler = new THREE.Mesh(new THREE.BoxGeometry(24, 0.8, 3), trim);
+    spoiler.position.set(0, 16.8, 21.6);
+    carBody.add(lightBar, lowerGlass, spoiler);
+    // swept headlights
+    [-1, 1].forEach((sx) => {
+      const head = new THREE.Mesh(new THREE.BoxGeometry(6.5, 1.8, 3.5), basic('#fff6c8'));
+      head.position.set(sx * 9, 9.2, -21);
+      head.rotation.set(0.35, sx * -0.25, 0);
+      carBody.add(head);
     });
-    const bumper = new THREE.Mesh(new THREE.BoxGeometry(27, 2.4, 2), lambert('#555'));
-    bumper.position.set(0, 4.6, 23);
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(26.5, 2.4, 2), trim);
+    bumper.position.set(0, 4.6, 23.2);
     carBody.add(bumper);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), basic('#fff', { map: plateTex }));
-    plate.position.set(0, 8.2, 23.45);
+    plate.position.set(0, 8.2, 24.45);
     const sticker = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), basic('#fff', { map: stickerTex }));
-    sticker.position.set(-8.5, 4.6, 24.05);
+    sticker.position.set(-8.5, 4.6, 24.25);
     carBody.add(plate, sticker);
   }
   const wheels = [];
@@ -758,7 +786,7 @@ export function create() {
     place(carObj, car.x, car.y, car.z, car.a);
     carBody.rotation.x = G.clamp(car.vz * 0.0009, -0.3, 0.3);
     carBody.scale.set(1 + wob * 0.08, 1 - wob * 0.12, 1);
-    bodyMat.color.set(car.hitFlash > 0 ? '#ffffff' : '#e9a23b');
+    bodyMat.color.set(car.hitFlash > 0 ? '#ffb3b3' : '#c3ccd2');
     wheelRoll -= (car.fwd * dt) / 4.5;
     wheels.forEach((w) => { w.rotation.y = w.userData.front ? -smoothSteer * 0.45 : 0; w.userData.roll.rotation.x = wheelRoll; });
     shadow.position.set(car.x, 0.5, car.y);
