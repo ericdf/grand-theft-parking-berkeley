@@ -56,7 +56,8 @@
         const grip = (hand ? 2.2 : 9) * (0.35 + 0.65 * c);
         l *= Math.exp(-grip * dt);
 
-        const sf = G.clamp(f / 110, -1, 1);
+        // arcade pivot: some steering even when stopped (reversing still steers the other way)
+        const sf = f < -10 ? G.clamp(f / 110, -1, -0.6) : G.clamp(f / 110, 0.6, 1);
         const target = steer * 2.7 * (hand ? 1.6 : 1) * sf;
         const blend = c < 0.95 ? 2.5 + 8 * c : 14;
         this.spin += (target - this.spin) * Math.min(1, dt * blend);
