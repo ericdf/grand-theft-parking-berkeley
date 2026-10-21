@@ -320,6 +320,29 @@
     ctx.restore();
   };
 
+  // A white flex post with a red reflective band, standing or knocked flat
+  G.drawFlexPost = (ctx, p) => {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot || 0);
+    ctx.scale(p.scale, p.scale);
+    if (p.down) {
+      ctx.fillStyle = '#f4f4f4';
+      ctx.fillRect(-8, -2, 16, 4);
+      ctx.fillStyle = '#d62828';
+      ctx.fillRect(3, -2, 3, 4);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.arc(1.5, 1.5, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f4f4f4';
+      ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d62828';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
   G.drawCyclist = (ctx, x, y, a, t, wobble = 0, jersey = '#3cb371') => {
     ctx.save();
     ctx.translate(x, y);

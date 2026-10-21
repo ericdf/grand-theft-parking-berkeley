@@ -55,19 +55,40 @@ The city missions (Drive 1, Hopkins, the drive to the council tent) can be playe
 
 The slalom is based on the real street. Raised concrete islands at the crosswalks make the double-yellow centerline swerve, with yellow-painted noses and yellow keep-right diamonds. In the game the swerves alternate right/left and are exaggerated, with 100px offsets against a 100px lane bundle, so a straight line through is impossible. That rhythm is the challenge even with Options → "Slalom secondary hazards" turned off. Tuning constants (`A`, `R`, `HOLD`, `SPACING`) are at the top of `js/slalom.js`.
 
+## Hopkins: the Corridor Project and the Pothole Preserve
+
+Hopkins from Sacramento to The Alameda is the Hopkins Corridor Project. On the drive there it is the failed street, with real-rated potholes and parked cars along both curbs. The first time you reach Hopkins, a ~14 s letterboxed intermission plays the project out in one crane shot over the Gioia block:
+
+1. "HOPKINS STREET, TODAY · PARKING SPACES: 130"
+2. Phase 1, repaving: the paver sweeps down the street and the craters fill in.
+3. Phase 2, parking removal: the parked cars vanish as a counter runs 130 → 0.
+4. Phase 3, Class IV cycletracks: green bikeways paint themselves in on both sides and flex posts pop up.
+5. "WELCOME TO THE NEW HOPKINS STREET · SMOOTH ROADS · 0 PARKING SPACES"
+
+E skips it. It uses the 3D renderer even in the top-down view (three.js starts loading at the start of Drive 1); without WebGL it falls back to a top-down pan. Timing is `CINE` and the camera is `City.cinemaCam` in `js/city.js`.
+
+Afterwards Hopkins is smooth and has no parking. Cyclists ride in the cycletracks, and knocking down a flex post forms the Cycletrack Incursion Review Panel. The space hunt moves to the real cross streets (McGee, Carlotta, Monterey), where each space still turns into a bike corral, parklet, island or loading zone. The last "space" is painted in the cycletrack in front of Gioia. Stop in it and it becomes a Bike-Only Pizza Parklet (slices for cyclists), which nudges your car out.
+
+East of The Alameda, Hopkins to Sutter is rated Failed in the MTC pavement data and is outside project limits: the Hopkins Pothole Preserve ("DAMAGING VEHICLES SINCE 2000"). It has rows of craters wall to wall, except for one gap that weaves left, center, right, so a careful driver can thread it (or take the sidewalk).
+
+## Slalom autopilot
+
+Options → "Slalom autopilot", **O** during the slalom, or `?autopilot` in the URL. The car then drives itself with the same inputs a player has: it aims at the lane center a little way ahead, swerves to the far side of potholes, and eases off to let crossing cyclists clear. It finishes with every gate clean. The fail banner points stuck players at it.
+
 ## Test / debug jumps
 
-Append `?start=hopkins|cityhall|council|slalom|finale` to the URL to jump straight to a mission, `?view=fp` for the 3D chase view, or `?touch` to force the on-screen controls.
+Append `?start=corridor|hopkins|cityhall|council|slalom|finale` to the URL to jump straight to a mission, `?view=fp` for the 3D chase view, or `?touch` to force the on-screen controls.
 
 ## Map data
 
 The city is real Berkeley, from Hopkins down to Dwight and from Sacramento over to Shattuck. To regenerate `js/streets-data.js`:
 
 ```sh
-python3 tools/build-streets.py Street_Centerlines.geojson Business_Licenses.csv
+python3 tools/build-streets.py Street_Centerlines.geojson Business_Licenses.csv Street_Pavement_Condition.geojson
 ```
 
 - Streets come from the City of Berkeley street-centerline GeoJSON, projected at 2.6 px/m. Road widths are exaggerated so the car fits; positions and connectivity are real.
+- Pothole density follows the real Pavement Condition Index (PCI), from MTC's Vital Signs "Street Pavement Condition – Streets and Roads" GeoJSON. Each centerline is matched to the nearest rated pavement section, with a preference for one with the same street name. That data only gives a category (Excellent … Failed), so the road stores the midpoint of that category's PCI band. A Failed block gets a crater every car length or so, with bigger craters. Excellent blocks are nearly clean. Roads with no rating (mostly campus roads) count as PCI 60. The streets within about a block of the Gioia stretch are capped at a light density (PCI 80 or better) so the parking hunt stays about parking. Roosevelt Canyon sits on a block rated Failed.
 - Storefront labels come from the business-license CSV: food, grocery, retail, salon and fitness licenses only. Each is geocoded by interpolating its street number along the centerline address ranges (left and right sides).
 - Landmark blocks are built from real intersections:
   - Civic Center Park, with the temporary council tent: MLK/Milvia × Allston/Center.

@@ -11,7 +11,7 @@
   const M = (G.CityMap = { W: D.w, H: D.h, SW, refs: D.refs });
 
   M.nodes = D.nodes.map(([x, y], i) => ({ i, x, y, roads: [] }));
-  M.roads = D.roads.map(([ni, cls, a, b, flat], i) => {
+  M.roads = D.roads.map(([ni, cls, a, b, flat, pci], i) => {
     const pts = [];
     for (let k = 0; k < flat.length; k += 2) pts.push([flat[k], flat[k + 1]]);
     const cum = [0];
@@ -21,7 +21,8 @@
       minX = Math.min(minX, pts[k][0]); maxX = Math.max(maxX, pts[k][0]);
       minY = Math.min(minY, pts[k][1]); maxY = Math.max(maxY, pts[k][1]);
     }
-    return { i, name: D.names[ni], cls, hw: HW[cls], a, b, pts, cum, len: cum[cum.length - 1], bbox: [minX, minY, maxX, maxY], closed: false };
+    // pci: Pavement Condition Index from MTC Vital Signs (band midpoint; null where the city has no rating)
+    return { i, name: D.names[ni], cls, pci: pci == null ? null : pci, hw: HW[cls], a, b, pts, cum, len: cum[cum.length - 1], bbox: [minX, minY, maxX, maxY], closed: false };
   });
   M.roads.forEach((r) => { M.nodes[r.a].roads.push(r); M.nodes[r.b].roads.push(r); });
   M.nodes.forEach((n) => { n.hw = Math.max(...n.roads.map((r) => r.hw)); n.junction = n.roads.length >= 3; });

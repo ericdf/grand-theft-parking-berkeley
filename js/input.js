@@ -10,7 +10,7 @@
 
   const GAME_KEYS = new Set([
     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space',
-    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'KeyM', 'KeyP', 'KeyV', 'Escape',
+    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Enter', 'KeyM', 'KeyO', 'KeyP', 'KeyV', 'Escape',
     'Digit1', 'Digit2', 'Digit3', 'KeyC', 'ShiftLeft', 'ShiftRight', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter',
   ]);
 

@@ -115,6 +115,7 @@ G.settings = {
   hazards: true,
   minimap: true,
   view: 'top', // 'top' or 'fp' (3D chase view, city only)
+  autopilot: false, // the slalom drives itself: watch a skilled run
 };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);
@@ -158,3 +159,4 @@ G.addStar = (reason) => {
 
 G.params = new URLSearchParams(location.search);
 if (G.params.get('view') === 'fp' || G.params.get('view') === 'top') G.settings.view = G.params.get('view');
+if (G.params.has('autopilot')) G.settings.autopilot = G.params.get('autopilot') !== '0';

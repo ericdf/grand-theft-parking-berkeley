@@ -13,6 +13,13 @@
     return true;
   };
 
+  // the 3D renderer regardless of the view setting (for the Hopkins intermission); false until loaded
+  F.ready = function () {
+    if (F.failed) return false;
+    if (!F.inst) { F.load(); return false; }
+    return true;
+  };
+
   F.load = function () {
     if (F.loading) return;
     F.loading = true;
@@ -21,8 +28,8 @@
       .catch((e) => {
         console.error('3D view unavailable:', e);
         F.failed = true;
+        if (F.wanted()) G.hud.toast('3D VIEW NEEDS WEBGL. BACK TO THE AERIAL SURVEY.', { color: '#ffb3b3', dur: 4 });
         G.settings.view = 'top';
-        G.hud.toast('3D VIEW NEEDS WEBGL. BACK TO THE AERIAL SURVEY.', { color: '#ffb3b3', dur: 4 });
       });
   };
 

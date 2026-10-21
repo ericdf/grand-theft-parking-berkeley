@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Build js/streets-data.js from City of Berkeley open data.
 
-Usage: python3 tools/build-streets.py Street_Centerlines.geojson [Business_Licenses.csv]
+Usage: python3 tools/build-streets.py Street_Centerlines.geojson [Business_Licenses.csv] [Street_Pavement_Condition.geojson]
 
 Businesses are geocoded by interpolating their street number along the centerline
 address ranges (FRADDL/TOADDL on the left side, FRADDR/TOADDR on the right).
+
+Each road gets the Pavement Condition Index of the nearest MTC Vital Signs pavement
+segment (preferring one with the same street name). That data only gives a category,
+so the road stores the midpoint of the category's PCI band; the game scales pothole
+density by it.
 
 Crops to the play area (Hopkins down to Dwight, Sacramento over to Shattuck),
 projects lon/lat to game pixels, simplifies the polylines, snaps shared endpoints
@@ -147,7 +152,64 @@ def geocode_businesses(csv_path, features):
     return out
 
 
-def main(src, dst, biz_csv=None):
+# MTC pavement condition categories -> midpoint of each PCI band
+PCI_BAND = {'Excellent': 95, 'Very Good': 85, 'Good': 75, 'Fair': 65, 'At Risk': 55, 'Poor': 37, 'Failed': 12}
+PCI_NAME_FIXES = {'MARTIN LUTHER KING JR W': 'MARTIN LUTHER KING JR WY', 'MC GEE AV': 'MCGEE AV', 'MC KINLEY AV': 'MCKINLEY AV',
+                  'NORTH VALLEY ST': 'N VALLEY ST', 'ACTON CIRCLE': 'ACTON CI'}
+
+
+def pci_street(name):
+    name = re.sub(r'\s*\(.*\)$', '', name.upper().replace('.', '')).strip()
+    return PCI_NAME_FIXES.get(norm_street(name), norm_street(name))
+
+
+def seg_dist(px, py, pts):
+    best = 1e18
+    for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+        dx, dy = bx - ax, by - ay
+        L2 = dx * dx + dy * dy
+        t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) if L2 else 0
+        best = min(best, math.hypot(px - ax - dx * t, py - ay - dy * t))
+    return best
+
+
+def along(pts, frac):
+    seg = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:])]
+    target = sum(seg) * frac
+    for i, L in enumerate(seg):
+        if target <= L or i == len(seg) - 1:
+            t = target / L if L else 0
+            return pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t
+        target -= L
+
+
+def load_pci(path):
+    """MTC pavement segments near the play area, as (street, pci, [polyline in game px])."""
+    out = []
+    for f in json.load(open(path))['features']:
+        g, p = f.get('geometry'), f['properties']
+        if not g or p.get('pci_info') not in PCI_BAND:
+            continue
+        lines = g['coordinates'] if g['type'] == 'MultiLineString' else [g['coordinates']]
+        if not any(LON0 - PAD <= x <= LON1 + PAD and LAT0 - PAD <= y <= LAT1 + PAD for l in lines for x, y in l):
+            continue
+        for l in lines:
+            out.append((pci_street(p.get('road_name') or ''), PCI_BAND[p['pci_info']], [project(x, y) for x, y in l]))
+    return out
+
+
+def match_pci(road, segs):
+    """PCI of the segment closest to the road's 25/50/75% points; a name mismatch costs 30 m."""
+    probes = [along(road['pts'], k) for k in (0.25, 0.5, 0.75)]
+    best, pci = 1e18, None
+    for name, val, pts in segs:
+        d = sum(seg_dist(x, y, pts) for x, y in probes) / 3 / SCALE + (0 if name == road['raw'] else 30)
+        if d < best:
+            best, pci = d, val
+    return pci if best < 35 else None
+
+
+def main(src, dst, biz_csv=None, pci_src=None):
     data = json.load(open(src))
     roads = []
     for f in data['features']:
@@ -177,6 +239,13 @@ def main(src, dst, biz_csv=None):
         r['b'] = node_for(r['pts'][-1])
         r['pts'][0] = nodes[r['a']]
         r['pts'][-1] = nodes[r['b']]
+
+    if pci_src:
+        segs = load_pci(pci_src)
+        for r in roads:
+            r['pci'] = match_pci(r, segs)
+        hit = sum(r['pci'] is not None for r in roads)
+        print(f'PCI: {len(segs)} pavement segments, {hit}/{len(roads)} roads matched')
 
     names = sorted({r['name'] for r in roads})
     name_idx = {n: i for i, n in enumerate(names)}
@@ -254,7 +323,7 @@ def main(src, dst, biz_csv=None):
         'h': round((LAT1 - LAT0) * M_PER_DEG_LAT * SCALE),
         'names': names,
         'nodes': [[round(x), round(y)] for x, y in nodes],
-        'roads': [[name_idx[r['name']], r['cls'], r['a'], r['b'], [v for p in r['pts'] for v in (round(p[0]), round(p[1]))]] for r in roads],
+        'roads': [[name_idx[r['name']], r['cls'], r['a'], r['b'], [v for p in r['pts'] for v in (round(p[0]), round(p[1]))]] + ([r['pci']] if r.get('pci') else []) for r in roads],
         'refs': refs,
         'slalomCross': slalom_cross,
         'businesses': geocode_businesses(biz_csv, data['features']) if biz_csv else [],
@@ -270,4 +339,4 @@ def main(src, dst, biz_csv=None):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
-    main(sys.argv[1], 'js/streets-data.js', sys.argv[2] if len(sys.argv) > 2 else None)
+    main(sys.argv[1], 'js/streets-data.js', sys.argv[2] if len(sys.argv) > 2 else None, sys.argv[3] if len(sys.argv) > 3 else None)

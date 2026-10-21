@@ -74,23 +74,17 @@ G.scenes = G.scenes || {};
   })();
   const RUBBLE_C = M.zoneCenter(M.zones.oldCityHall);
 
-  // Hopkins parking spots, positioned on the real street around Monterey; nudged clear of intersections
-  function clearOfJunctions(s0) {
-    for (let d = 0; d < 260; d += 10) {
-      for (const s of [s0 + d, s0 - d]) {
-        const p = M.pathPoint(hopkins, s);
-        if (!M.nodes.some((n) => n.junction && G.dist(n.x, n.y, p.x, p.y) < n.hw + 70)) return s;
-      }
-    }
-    return s0;
-  }
-  function spotAt(s, side, type) {
-    const p = M.pathPoint(hopkins, s);
-    const n = M.nearest(p.x, p.y, 'HOPKINS ST');
-    const hw = n ? n.road.hw : 54;
+  // Parking spots. Hopkins itself has no parking any more (see the Hopkins Corridor Project below), so the
+  // hunt runs along the real cross streets; the last "space" is painted in the cycletrack in front of Gioia.
+  const HOP_HW = (M.roads.find((r) => r.name === 'HOPKINS ST') || { hw: 54 }).hw;
+  function crossSpot(name, side) {
+    const node = M.nodes.find((n) => n.roads.some((r) => r.name === name) && n.roads.some((r) => r.name === 'HOPKINS ST'));
+    const r = node && node.roads.find((q) => q.name === name && q.len > 280);
+    if (!r) return null;
+    const p = M.pointAt(r, r.a === node.i ? 190 : r.len - 190);
     const [nx, ny] = normal(p);
-    const off = (hw - 19) * side;
-    return { s, side, type, x: p.x + nx * off, y: p.y + ny * off, a: Math.atan2(p.dy, p.dx), w: 84, h: 34 };
+    const off = (r.hw - 19) * side;
+    return { side, x: p.x + nx * off, y: p.y + ny * off, a: Math.atan2(p.dy, p.dx) };
   }
   const gioiaS = gioia ? M.pathProject(hopkins, gioia.x, gioia.y).s : sMonterey + 90;
   const gioiaSide = (() => {
@@ -99,12 +93,15 @@ G.scenes = G.scenes || {};
     const [nx, ny] = normal(p);
     return (gioia.x - p.x) * nx + (gioia.y - p.y) * ny > 0 ? 1 : -1;
   })();
-  const SPOT_PLAN = [
-    { s: clearOfJunctions(sMonterey + 420), side: -gioiaSide },
-    { s: clearOfJunctions(sMonterey + 820), side: gioiaSide },
-    { s: clearOfJunctions(Math.max(120, sMonterey - 230)), side: -gioiaSide },
-    { s: gioiaS, side: gioiaSide },
-  ];
+  const SPOT_PLAN = (() => {
+    const plan = ['MCGEE AVE', 'CARLOTTA AVE', 'MONTEREY AVE', 'CALIFORNIA ST', 'COLUSA AVE']
+      .map((name, k) => crossSpot(name, k % 2 ? 1 : -1)).filter(Boolean).slice(0, 3);
+    const p = M.pathPoint(hopkins, gioiaS);
+    const [nx, ny] = normal(p);
+    const off = (HOP_HW - 19) * gioiaSide;
+    plan.push({ s: gioiaS, side: gioiaSide, x: p.x + nx * off, y: p.y + ny * off, a: Math.atan2(p.dy, p.dx) });
+    return plan;
+  })();
 
   // Roosevelt Ave between Allston and Bancroft: so pitted it's now a canyon
   const CANYON = (() => {
@@ -129,23 +126,94 @@ G.scenes = G.scenes || {};
     return { r, a0, a1, poly: left.concat(right.reverse()), mid };
   })();
 
+  // Hopkins from The Alameda to Sutter: rated Failed in the MTC pavement data, so it is now a preserve
+  const PRESERVE = (() => {
+    const at = M.nodes.find((n) => n.roads.some((r) => r.name === 'THE ALAMEDA') && n.roads.some((r) => r.name === 'HOPKINS ST'));
+    if (!at) return null;
+    const s0 = M.pathProject(hopkins, at.x, at.y).s, s1 = hopkins.len;
+    if (s1 - s0 < 400) return null;
+    for (const r of M.roads) {
+      if (r.name !== 'HOPKINS ST') continue;
+      const mid = M.pointAt(r, r.len / 2), pr = M.pathProject(hopkins, mid.x, mid.y);
+      if (pr.d < 5 && pr.s > s0 && pr.s < s1) r.preserve = true;
+    }
+    return { s0, s1 };
+  })();
+
+  // The Hopkins Corridor Project, Sacramento to The Alameda: repaved, its curbside parking removed, and
+  // Class IV cycletracks (green, behind a row of flex posts) on both sides. Before the intermission it is
+  // the failed street with parked cars; the intermission plays the project out (City.updateCinema).
+  const PROJECT = (() => {
+    const s1 = PRESERVE ? PRESERVE.s0 : Math.min(hopkins.len, 2300);
+    for (const r of M.roads) {
+      if (r.name !== 'HOPKINS ST' || r.preserve) continue;
+      const mid = M.pointAt(r, r.len / 2), pr = M.pathProject(hopkins, mid.x, mid.y);
+      if (pr.d < 5 && pr.s < s1) r.project = true;
+    }
+    // stretches of street between intersections
+    const junctions = M.nodes.filter((n) => n.junction)
+      .map((n) => ({ pr: M.pathProject(hopkins, n.x, n.y), r: n.hw + 4 }))
+      .filter((j) => j.pr.d < 5).map((j) => ({ s: j.pr.s, r: j.r })).sort((a, b) => a.s - b.s);
+    const runs = [];
+    let a = 0;
+    for (const j of junctions) {
+      if (a >= s1) break;
+      if (j.s - j.r > a + 10) runs.push([a, Math.min(s1, j.s - j.r)]);
+      a = Math.max(a, j.s + j.r);
+    }
+    if (s1 - a > 10) runs.push([a, s1]);
+    const rng = G.mulberry32(1300);
+    const at = (s, lat) => { const p = M.pathPoint(hopkins, s); return { x: p.x - p.dy * lat, y: p.y + p.dx * lat, p }; };
+    const COLORS = ['#c0392b', '#2c3e50', '#7f8c8d', '#ecf0f1', '#16a085', '#34495e', '#d35400', '#8e44ad', '#bdc3c7', '#f1c40f'];
+    const parked = [], posts = [];
+    for (const [sa, sb] of runs) {
+      for (let s = sa + 30; s < sb - 25; s += 54) {
+        [-1, 1].forEach((side) => {
+          if (rng() > 0.85) return;
+          const q = at(s + (rng() - 0.5) * 6, side * (HOP_HW - 15));
+          const a = Math.atan2(q.p.dx, -q.p.dy) + (side < 0 ? Math.PI : 0); // parked with the traffic
+          const c = Math.cos(a), sn = Math.sin(a);
+          const poly = [[-13, -23], [13, -23], [13, 23], [-13, 23]].map(([lx, ly]) => [q.x + lx * c - ly * sn, q.y + lx * sn + ly * c]);
+          parked.push({ s, x: q.x, y: q.y, a, color: COLORS[Math.floor(rng() * COLORS.length)], poly });
+        });
+      }
+      for (let s = sa + 14; s < sb - 10; s += 34) {
+        [-1, 1].forEach((side) => {
+          if (side === gioiaSide && Math.abs(s - gioiaS) < 60) return; // the gap at the last space
+          const q = at(s, side * (HOP_HW - 22));
+          posts.push({ s, x0: q.x, y0: q.y });
+        });
+      }
+    }
+    return { s1, runs, parked, posts, track: HOP_HW - 10 };
+  })();
+
   // potholes
   const potholes = [];
   const extraSigns = [];
   (function genPotholes() {
     const rng = G.mulberry32(4242);
     const add = (x, y, r, extra) => potholes.push(Object.assign({ x, y, r, shape: G.makePotholeShape(r, rng) }, extra || {}));
-    const nearSpot = (x, y) => SPOT_PLAN.some((sp) => { const p = M.pathPoint(hopkins, sp.s); return G.dist(x, y, p.x, p.y) < 130; });
+    const nearSpot = (x, y) => SPOT_PLAN.some((sp) => G.dist(x, y, sp.x, sp.y) < 130);
+    // Density follows the real Pavement Condition Index: failed blocks are pitted every
+    // car length or so, excellent ones are nearly clean. Unrated roads count as PCI 60.
+    // The cross streets around Gioia are where you hunt for a space: they get a light dusting
+    // whatever their rating, so the heist stays about parking. Hopkins itself is handled below.
+    const parkStretch = [];
+    for (let s = 0; s <= 1300; s += 100) parkStretch.push(M.pathPoint(hopkins, s));
+    const nearPark = (r) => [0.25, 0.5, 0.75].some((f) => { const p = M.pointAt(r, r.len * f); return parkStretch.some((q) => G.dist(p.x, p.y, q.x, q.y) < 450); });
     for (const r of M.roads) {
-      if (CANYON && r === CANYON.r) continue;
-      const busy = r.cls !== 'L';
-      for (let s = 70 + rng() * 60; s < r.len - 70; s += 170 + rng() * 170) {
-        if (rng() < (busy ? 0.35 : 0.6)) continue;
+      if (CANYON && r === CANYON.r || r.preserve || r.project) continue;
+      const rated = r.pci == null ? 60 : r.pci;
+      const pci = nearPark(r) ? Math.max(80, rated) : rated;
+      const keep = Math.min(1, Math.pow(Math.max(0, 100 - pci) / 90, 1.5));
+      for (let s = 70 + rng() * 60; s < r.len - 70; s += 90 + rng() * 120) {
+        if (rng() >= keep) continue;
         const p = M.pointAt(r, s);
         if (M.nodes.some((n) => n.junction && G.dist(n.x, n.y, p.x, p.y) < n.hw + 45)) continue;
         if (G.dist(p.x, p.y, CH.x, CH.y) < 180 || G.dist(p.x, p.y, R.spawn[0], R.spawn[1]) < 260 || nearSpot(p.x, p.y)) continue;
         if (CLOSURES.some((c) => G.dist(c.p.x, c.p.y, p.x, p.y) < 90)) continue;
-        const rad = 15 + rng() * 10;
+        const rad = 15 + rng() * 10 + (pci < 25 ? 5 : 0);
         const [nx, ny] = normal(p);
         const off = (rng() * 2 - 1) * (r.hw - rad - 12);
         add(p.x + nx * off, p.y + ny * off, rad);
@@ -171,6 +239,43 @@ G.scenes = G.scenes || {};
         });
       });
     }
+    // The project stretch at its real rating, until the paver comes through (they carry `s` along Hopkins)
+    for (const [sa, sb] of PROJECT.runs) {
+      for (let s = sa + 16 + rng() * 14; s < sb - 16; s += 22 + rng() * 26) {
+        const p = M.pathPoint(hopkins, s);
+        const n = M.nearest(p.x, p.y, 'HOPKINS ST');
+        const pci = n && n.road.pci != null ? n.road.pci : 60;
+        if (rng() >= Math.min(1, Math.pow((100 - pci) / 90, 1.5))) continue;
+        const rad = 13 + rng() * 8;
+        const [nx, ny] = normal(p);
+        const off = (rng() * 2 - 1) * (HOP_HW - rad - 18);
+        add(p.x + nx * off, p.y + ny * off, rad, { project: true, s });
+      }
+    }
+    // Hopkins Pothole Preserve: rows of craters, wall to wall except for one gap that weaves
+    // left, center, right, center… so a careful driver can thread it (or take the sidewalk)
+    if (PRESERVE) {
+      const GAP = [0, 1, 2, 1];
+      let k = 0;
+      for (let s = PRESERVE.s0 + 80; s < PRESERVE.s1 - 80; s += 72, k++) {
+        const p = M.pathPoint(hopkins, s);
+        if (M.nodes.some((n) => n.junction && G.dist(n.x, n.y, p.x, p.y) < n.hw + 30)) continue;
+        const [nx, ny] = normal(p);
+        [-32, 0, 32].forEach((lat, i) => {
+          if (i === GAP[k % GAP.length]) return;
+          const l = lat + (rng() - 0.5) * 8, a = (rng() - 0.5) * 20;
+          add(p.x + nx * l + p.dx * a, p.y + ny * l + p.dy * a, 13 + rng() * 4, { preserve: true });
+        });
+      }
+      const ends = [M.pathPoint(hopkins, PRESERVE.s0 + 45), M.pathPoint(hopkins, PRESERVE.s1 - 90)];
+      ends.forEach((p, i) => add(p.x, p.y, 0.01, {
+        sign: i ? ['HOPKINS POTHOLE PRESERVE', 'LEAVE ONLY TIRE TRACKS'] : ['HOPKINS POTHOLE PRESERVE', 'DAMAGING VEHICLES SINCE 2000', 'OUTSIDE PROJECT LIMITS'],
+        plaque: true, signOnly: true, side: i ? -1 : 1,
+      }));
+    }
+    // the project sign
+    const bb = M.pathPoint(hopkins, Math.max(60, sMonterey - 110));
+    add(bb.x, bb.y, 0.01, { sign: ['HOPKINS CORRIDOR PROJECT', 'PARKING SPACES REMOVED: 130', 'THANK YOU FOR YOUR PATIENCE'], style: { bg: '#f26b1d', color: '#fff', border: '#222' }, signOnly: true, side: -gioiaSide });
     // set pieces
     const sp = M.pathPoint(shattuck, 330);
     const [snx, sny] = normal(sp);
@@ -326,11 +431,13 @@ G.scenes = G.scenes || {};
   const City = {};
   G.scenes.city = City;
   // world geometry the 3D renderer (js/fp3d.js) builds its 3D city from
-  City.world = { potholes, extraSigns, closures: CLOSURES, canyon: CANYON, tent: TENT, cityHall: CH, rubble, rubbleCenter: RUBBLE_C };
+  City.world = { potholes, extraSigns, closures: CLOSURES, canyon: CANYON, preserve: PRESERVE, project: PROJECT, tent: TENT, cityHall: CH, rubble, rubbleCenter: RUBBLE_C };
 
   City.enter = function (opts = {}) {
     this.phase = opts.phase || 'drive1';
     this.t = 0;
+    this.cinema = null;
+    if (this.phase === 'drive1' && G.fpView) G.fpView.ready(); // start loading 3D for the Hopkins intermission
     this.fx = new G.Particles();
     this.floaters = new G.Floaters();
     this.route = null;
@@ -351,12 +458,15 @@ G.scenes = G.scenes || {};
     const rng = G.mulberry32(77);
     this.clowns = Array.from({ length: 7 }, (_, k) => ({ x: TENT.x + (rng() - 0.5) * 160, y: TENT.y + (rng() - 0.5) * 200, tx: 0, ty: 0, wait: rng() * 2, t: k, cd: 0, color: G.pick(['#ff5ea8', '#5bc0eb', '#9bc53d', '#fde74c', '#c77dff'], rng) }));
     if (!G.stats.spotTypes) G.stats.spotTypes = G.shuffle(['corral', 'dining', 'island', 'loading']).slice(0, 3);
-    this.spots = SPOT_PLAN.map((p, k) => Object.assign(spotAt(p.s, p.side, k < 3 ? G.stats.spotTypes[k] : 'phantom'), { state: 'hidden', pop: 0 }));
+    this.spots = SPOT_PLAN.map((p, k) => Object.assign({}, p, { type: k < 3 ? G.stats.spotTypes[k] : 'phantom', w: 84, h: 34, state: 'hidden', pop: 0 }));
     this.spots.forEach((s) => {
       const c = Math.cos(s.a), sn = Math.sin(s.a);
       const hw = s.w / 2, hh = s.h / 2;
       s.poly = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([lx, ly]) => [s.x + lx * c - ly * sn, s.y + lx * sn + ly * c]);
     });
+    this.parked = PROJECT.parked.map((p) => Object.assign({}, p, { gone: false, goneAt: 0 }));
+    this.posts = PROJECT.posts.map((p) => ({ s: p.s, x: p.x0, y: p.y0, vx: 0, vy: 0, rot: 0, vr: 0, down: false, scale: 0 }));
+    this.setProject(this.phase !== 'drive1');
     G.hud.reset();
     G.hud.setTicker(RADIO);
     G.audio.setMusic('drive');
@@ -375,26 +485,165 @@ G.scenes = G.scenes || {};
       const s = this.spots[3];
       const p = M.pathPoint(hopkins, s.s);
       this.car = new G.Car(p.x, p.y, Math.atan2(p.dx, -p.dy));
-      this.spots.forEach((sp) => { sp.state = sp.type === 'phantom' ? 'gone' : 'done'; sp.pop = 1; });
+      this.spots.forEach((sp) => { sp.state = 'done'; sp.pop = 1; });
       this.startCityHall(true);
     }
     this.car.onLand = (car) => this.onLand(car);
+    if (opts.corridor) this.startCinema();
     this.camX = this.car.x;
     this.camY = this.car.y;
   };
 
   City.startHopkins = function (fromCheckpoint) {
     this.phase = 'hopkins';
-    if (!fromCheckpoint) G.hud.banner('MISSION PASSED', 'YOU REACHED HOPKINS. THE ROAD DID NOT.', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
+    if (!fromCheckpoint) G.hud.banner('MISSION PASSED', 'YOU REACHED HOPKINS. SO DID THE PAVER.', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
     G.game.setCheckpoint('city', { phase: 'hopkins' });
     G.hud.banner('MISSION START', 'THE HOPKINS PARKING HEIST', { sting: 'start', dur: 2.8 });
-    G.hud.setObjective('FIND ONE LEGAL PARKING SPACE. BUY ONE SLICE AT GIOIA.', 'Follow the P marker along Hopkins St.');
+    G.hud.setObjective('FIND ONE LEGAL PARKING SPACE. BUY ONE SLICE AT GIOIA.', 'Hopkins has no parking now. Follow the P marker to the side streets.');
     G.formCommittee('Hopkins Parking Task Force');
     this.errand = 120;
     this.spotIdx = 0;
     this.nextSpotIn = 0;
     this.spots.forEach((s) => { s.state = 'hidden'; s.pop = 0; });
     this.spots[0].state = 'avail';
+  };
+
+  // ---------- the Hopkins Corridor Project ----------
+  // paveS / trackS: how far along Hopkins the repaving and the cycletracks have got (-1 none, Infinity done)
+  City.setProject = function (done) {
+    this.paveS = this.trackS = done ? Infinity : -1;
+    this.parked.forEach((p) => { p.gone = done; });
+    this.posts.forEach((p) => { p.scale = done ? 1 : 0; });
+    this.refreshPotholes();
+  };
+  City.refreshPotholes = function () {
+    this.livePotholes = potholes.filter((p) => !(p.project && p.s < this.paveS));
+  };
+  // changes whenever the painted ground does (the 3D view repaints its ground texture on a change)
+  City.groundKey = function () {
+    const q = (v) => (v === Infinity ? 'done' : Math.floor(v / 160));
+    return q(this.paveS) + '/' + q(this.trackS);
+  };
+
+  // ---------- intermission: the project, played out over the Gioia block ----------
+  // One crane shot: the paver sweeps down Hopkins filling the craters, the parked cars vanish while a
+  // counter runs 130 → 0, then the green cycletracks paint themselves in and the flex posts pop up.
+  // Drawn by the 3D renderer when it can load (whatever the view setting), else as a top-down pan.
+  const CINE = { pave: [2.2, 4.8], tow: [5.3, 8.0], track: [8.6, 11.0], dur: 14.4 };
+  const SPACES = 130;
+  City.startCinema = function () {
+    this.cinema = { t: 0, spaces: SPACES };
+    this.car.locked = true;
+    // tow order: nearest the camera's subject first
+    const g = M.pathPoint(hopkins, gioiaS);
+    const order = this.parked.slice().sort((p, q) => G.dist(p.x, p.y, g.x, g.y) - G.dist(q.x, q.y, g.x, g.y));
+    order.forEach((p, k) => { p.goneAt = G.lerp(CINE.tow[0], CINE.tow[1] - 0.3, Math.pow(k / Math.max(1, order.length - 1), 0.8)); });
+    G.hud.reset();
+    G.audio.play('whoosh');
+    G.audio.setDuck(0.55);
+  };
+  City.updateCinema = function (dt) {
+    const c = this.cinema;
+    const before = c.t;
+    c.t += dt;
+    const t = c.t;
+    const beat = (at) => before < at && t >= at;
+    const sweep = ([t0, t1]) => (t < t0 ? -1 : t >= t1 ? Infinity : G.lerp(0, PROJECT.s1, (t - t0) / (t1 - t0)));
+    // phase 1: repave
+    const paveS = sweep(CINE.pave);
+    if (paveS !== this.paveS) {
+      let k = 0;
+      for (const p of potholes) {
+        if (!p.project || p.s < this.paveS || p.s >= paveS) continue;
+        this.fx.burst(p.x, p.y, 8, { type: 'poof', color: ['#55555c', '#6b6b72', '#ddd'], speed: 60, life: 0.7, size: 8 });
+        if (k++ % 3 === 0) G.audio.play('poof');
+      }
+      this.paveS = paveS;
+      this.refreshPotholes();
+    }
+    // phase 2: the parking goes
+    let left = 0;
+    for (const p of this.parked) {
+      if (!p.gone && t >= p.goneAt && t >= CINE.tow[0]) {
+        p.gone = true;
+        this.fx.burst(p.x, p.y, 10, { type: 'poof', color: ['#fff', '#eee', '#ddd'], speed: 80, life: 0.8, size: 10 });
+      }
+      if (!p.gone) left++;
+    }
+    c.spaces = Math.round((SPACES * left) / Math.max(1, this.parked.length));
+    if (beat(CINE.tow[0])) G.audio.play('fail');
+    // phase 3: cycletracks
+    this.trackS = sweep(CINE.track);
+    if (beat(CINE.track[1])) G.audio.play('score');
+    if (beat(CINE.pave[0]) || beat(CINE.track[0])) G.audio.play('whoosh');
+    if (beat(CINE.track[1] + 0.4)) G.audio.play('stamp');
+    if (t >= CINE.dur || (t > 0.6 && (G.input.interact() || G.input.resetCar()))) {
+      this.cinema = null;
+      this.setProject(true);
+      this.car.locked = false;
+      G.audio.setDuck(1);
+      this.startHopkins(false);
+    }
+  };
+  // camera at (x, h, y) looking at (lx, lh, ly), in map px: high over the Gioia block, looking down Hopkins
+  City.cinemaCam = function () {
+    const e = G.smoothstep(this.cinema.t / CINE.dur);
+    const p = M.pathPoint(hopkins, gioiaS + G.lerp(540, 400, e));
+    const q = M.pathPoint(hopkins, gioiaS - G.lerp(160, 100, e));
+    const side = -gioiaSide * G.lerp(40, 25, e);
+    return { x: p.x - p.dy * side, y: p.y + p.dx * side, h: G.lerp(240, 175, e), lx: q.x, ly: q.y, lh: 0 };
+  };
+
+  // letterbox, title cards, skip hint; expects an identity (×dpr) transform
+  City.drawCinema = function (ctx, vw, vh) {
+    const c = this.cinema, t = c.t;
+    const bar = Math.round(vh * 0.11 * G.smoothstep(Math.min(1, t / 0.5)));
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, vw, bar);
+    ctx.fillRect(0, vh - bar, vw, bar);
+    const fade = (a, b) => G.clamp(Math.min((t - a) / 0.4, (b - t) / 0.4), 0, 1);
+    const cards = [
+      [0.4, CINE.pave[0] - 0.1, { small: 'HOPKINS STREET, TODAY', big: 'PAVEMENT: POOR', sub: 'PARKING SPACES: ' + SPACES, bg: '#5b3a1e', fg: '#f3dfa2' }],
+      [CINE.pave[0], CINE.tow[0] - 0.2, { small: 'HOPKINS CORRIDOR PROJECT · PHASE 1', big: 'REPAVING', sub: 'GOODBYE, POTHOLES', bg: '#f26b1d', fg: '#fff' }],
+      [CINE.tow[0], CINE.track[0] - 0.2, { small: 'PHASE 2: PARKING REMOVAL', big: 'PARKING SPACES: ' + c.spaces, sub: 'NOTICE WAS POSTED (IN 2019)', bg: '#f26b1d', fg: '#fff' }],
+      [CINE.track[0], CINE.track[1] + 0.3, { small: 'PHASE 3', big: 'CLASS IV CYCLETRACKS', sub: 'SEPARATED · PROTECTED · VERY GREEN', bg: '#2e8b57', fg: '#fff' }],
+      [CINE.track[1] + 0.4, CINE.dur - 0.2, { small: 'WELCOME TO THE NEW', big: 'HOPKINS STREET', sub: 'SMOOTH ROADS · 0 PARKING SPACES', bg: '#ffd23f', fg: '#222' }],
+    ];
+    for (const [a, b, o] of cards) { const k = fade(a, b); if (k > 0) this.drawCard(ctx, vw, vh, k, o); }
+    ctx.font = G.font(12);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('E TO SKIP', 16, vh - bar / 2);
+  };
+  City.drawCard = function (ctx, vw, vh, alpha, o) {
+    const maxW = Math.min(vw - 32, 620);
+    let big = 44;
+    ctx.font = G.font(big);
+    while (big > 16 && ctx.measureText(o.big).width > maxW - 40) { big -= 2; ctx.font = G.font(big); }
+    const w = Math.min(maxW, ctx.measureText(o.big).width + 60);
+    const h = big + 78, x = vw / 2 - w / 2, y = Math.max(vh * 0.12 + 8, vh * 0.27 - h / 2) - (1 - alpha) * 12;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    G.rr(ctx, x + 5, y + 6, w, h, 12);
+    ctx.fill();
+    ctx.fillStyle = o.bg;
+    G.rr(ctx, x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = o.fg;
+    ctx.lineWidth = 3;
+    G.rr(ctx, x + 6, y + 6, w - 12, h - 12, 8);
+    ctx.stroke();
+    ctx.fillStyle = o.fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = G.font(14);
+    ctx.fillText(o.small, vw / 2, y + 24);
+    ctx.font = G.font(big);
+    ctx.fillText(o.big, vw / 2, y + 30 + big / 2 + 4);
+    ctx.font = G.font(15);
+    ctx.fillText(o.sub, vw / 2, y + h - 22);
+    ctx.globalAlpha = 1;
   };
 
   City.startCityHall = function (fromCheckpoint) {
@@ -409,9 +658,7 @@ G.scenes = G.scenes || {};
     if (this.phase === 'drive1') return { x: R.hopkinsMonterey[0], y: R.hopkinsMonterey[1] };
     if (this.phase === 'hopkins') {
       const s = this.spots[this.spotIdx];
-      if (!s) return null;
-      const p = M.pathPoint(hopkins, s.s);
-      return { x: p.x, y: p.y };
+      return s ? { x: s.x, y: s.y } : null;
     }
     return { x: CH.x, y: CH.y };
   };
@@ -433,7 +680,7 @@ G.scenes = G.scenes || {};
     if (inp.resetCar() && !car.locked) this.resetCarToRoad();
     car.update(dt, inp);
 
-    const hit = car.checkPotholes(potholes);
+    const hit = car.checkPotholes(this.livePotholes);
     if (hit) {
       G.stats.potholes++;
       this.floaters.add(hit.x, hit.y - 20, G.pick(QUIPS_POTHOLE), '#ffd23f');
@@ -457,6 +704,11 @@ G.scenes = G.scenes || {};
       for (const c of CLOSURES) {
         if (Math.abs(c.p.x - car.x) > 120 || Math.abs(c.p.y - car.y) > 120) continue;
         const h = G.circlePoly(car.x, car.y, car.r, c.poly);
+        if (h) hits.push(h);
+      }
+      for (const p of this.parked) {
+        if (p.gone || Math.abs(p.x - car.x) > 60 || Math.abs(p.y - car.y) > 60) continue;
+        const h = G.circlePoly(car.x, car.y, car.r, p.poly);
         if (h) hits.push(h);
       }
       for (const s of this.spots) {
@@ -488,12 +740,25 @@ G.scenes = G.scenes || {};
       if (inCanyon && !car.airborne) { car.vx *= Math.exp(-0.6 * dt); car.vy *= Math.exp(-0.6 * dt); }
     }
     this.updateClutter(dt);
+    this.updatePosts(dt);
     this.updateCyclists(dt);
     this.updateClowns(dt);
 
-    if (this.phase === 'drive1') {
+    if (PRESERVE) {
       const n = M.nearest(car.x, car.y);
-      if (n && n.road.name === 'HOPKINS ST' && n.e < 0) this.startHopkins(false);
+      const inPreserve = !!(n && n.road.preserve && n.e < 0);
+      if (inPreserve && !this.inPreserve) {
+        G.hud.toast('WELCOME TO THE HOPKINS POTHOLE PRESERVE. PLEASE STAY ON MARKED CRATERS.', { color: '#f3dfa2', dur: 4 });
+        if (!G.stats.preserveDocents) { G.stats.preserveDocents = true; G.formCommittee('Pothole Preserve Docent Council'); }
+      }
+      this.inPreserve = inPreserve;
+    }
+
+    if (this.cinema) {
+      this.updateCinema(dt);
+    } else if (this.phase === 'drive1') {
+      const n = M.nearest(car.x, car.y);
+      if (n && n.road.name === 'HOPKINS ST' && n.e < 0) this.startCinema();
     } else if (this.phase === 'hopkins') {
       this.updateHopkins(dt);
     } else if (this.phase === 'toCityHall') {
@@ -513,9 +778,11 @@ G.scenes = G.scenes || {};
       this.routeT = 0.35;
     }
 
-    const tx = car.x + car.vx * 0.45, ty = car.y + car.vy * 0.45;
-    this.camX += (tx - this.camX) * Math.min(1, dt * 4);
-    this.camY += (ty - this.camY) * Math.min(1, dt * 4);
+    const cam = this.cinema && this.cinemaCam();
+    const tx = cam ? cam.lx : car.x + car.vx * 0.45, ty = cam ? cam.ly : car.y + car.vy * 0.45;
+    const ease = cam ? 1 : Math.min(1, dt * 4); // the intermission's camera is on rails
+    this.camX += (tx - this.camX) * ease;
+    this.camY += (ty - this.camY) * ease;
     if (this.lastLand) { this.lastLand.t -= dt; if (this.lastLand.t <= 0) this.lastLand = null; }
     this.fx.update(dt);
     this.floaters.update(dt);
@@ -623,9 +890,39 @@ G.scenes = G.scenes || {};
     }
   };
 
+  // Flex posts along the cycletracks: they pop up as the green paint reaches them, and fold over when hit
+  City.updatePosts = function (dt) {
+    const car = this.car;
+    for (const p of this.posts) {
+      if (p.s < this.trackS) p.scale = Math.min(1, p.scale + dt * 4);
+      if (p.scale < 0.5) continue;
+      if (p.vx || p.vy) {
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+        const k = Math.exp(-3 * dt);
+        p.vx *= k; p.vy *= k; p.vr *= k;
+        if (Math.abs(p.vx) + Math.abs(p.vy) < 2) { p.vx = 0; p.vy = 0; }
+      }
+      if (!p.down && car.z < 20 && Math.abs(p.x - car.x) < 22 && Math.abs(p.y - car.y) < 22 && G.dist(p.x, p.y, car.x, car.y) < car.r + 4) {
+        p.down = true;
+        p.vx = car.vx * 0.6; p.vy = car.vy * 0.6;
+        p.vr = (Math.random() - 0.5) * 10;
+        car.vx *= 0.96; car.vy *= 0.96;
+        G.audio.play('cone');
+        this.floaters.add(p.x, p.y - 18, G.pick(['FLEX POST: FLEXED', 'BIKEWAY BREACH!', 'NOTED.']), '#7CFC00', 1.2, 13);
+        if (!G.stats.postsHit) {
+          G.stats.postsHit = true;
+          G.hud.toast('A CLASS IV SEPARATED BIKEWAY IS NOT A SUGGESTION.', { color: '#7CFC00', dur: 3.5 });
+          G.formCommittee('Cycletrack Incursion Review Panel');
+        }
+      }
+    }
+  };
+
   City.cyclistPos = function (c) {
     const p = M.pathPoint(c.path, c.s);
-    const off = c.off + Math.sin(c.t * 0.9) * c.amp;
+    // on the finished Hopkins they keep to the cycletrack on their right
+    const inTrack = c.name === 'HOPKINS ST' && this.trackS === Infinity;
+    const off = inTrack ? c.dir * PROJECT.track + Math.sin(c.t * 0.9) * 2 : c.off + Math.sin(c.t * 0.9) * c.amp;
     const fx = p.dx * c.dir, fy = p.dy * c.dir;
     return { x: p.x - p.dy * off, y: p.y + p.dx * off, a: Math.atan2(fx, -fy) };
   };
@@ -768,30 +1065,32 @@ G.scenes = G.scenes || {};
       this.floaters.add(car.x, car.y - 30, 'PARKED!!!', '#7CFC00', 1.4, 22);
     }
     if (ev(1.2)) {
-      s.state = 'ghost';
-      s.ghostT = 0;
-      G.hud.banner('PARKING SPACE NOT FOUND', 'THIS SPACE EXISTS ONLY IN THE 2019 PARKING STUDY.', { sting: 'fail', dur: 3.2, color: '#ff5a5a' });
-      this.fx.burst(s.x, s.y, 30, { type: 'poof', color: ['#d6f0ff', '#fff'], speed: 70, life: 1.2, size: 10 });
+      // it was painted in the cycletrack all along: now it's a bike-only pizza parklet, and the car is in the way
+      s.state = 'done';
+      s.pop = 0;
+      car.locked = false;
+      G.hud.banner('PARKING SPACE NOT FOUND', 'IT IS NOW A BIKE-ONLY PIZZA PARKLET. SLICES FOR CYCLISTS.', { sting: 'fail', dur: 3.4, color: '#ff5a5a' });
+      this.fx.burst(s.x, s.y, 30, { type: 'poof', color: ['#fff', '#eee', '#ddd'], speed: 90, life: 1, size: 10 });
+      G.audio.play('poof');
       G.stats.parkingYears++;
     }
     if (ev(2.0)) {
-      G.addStar('PHANTOM PARKING ATTEMPT');
-      G.formCommittee('2019 Parking Study Update Committee');
+      G.addStar('PARKING SPACE REASSIGNED TO PIZZA');
+      G.formCommittee('Bike-Only Pizza Parklet Activation Committee');
     }
+    if (ev(2.8)) this.floaters.add(s.x, s.y - 30, 'ONE SLICE, PLEASE! (I CAME BY BIKE)', '#7CFC00', 2, 14);
     if (ev(4.6)) G.hud.banner('ITEM ACQUIRED', 'PARKING APPEAL FORM 27-B (14 PAGES, DOUBLE-SIDED)', { sting: 'start', dur: 2.6, color: '#9be7ff' });
     if (ev(7.2)) {
-      s.state = 'gone';
       this.parkSeq = -1;
       this.spotIdx = 99;
       G.hud.toast('PIZZA STATUS: STILL UNPURCHASED. THE SMELL WAS NICE, THOUGH.', { color: '#ffd23f' });
       this.startCityHall(false);
     }
-    if (s && s.state === 'ghost') s.ghostT += dt;
   };
 
   // ---------- rendering ----------
   City.render = function (ctx, vw, vh, dpr) {
-    if (G.fpView && G.fpView.active()) { G.fpView.render(this, ctx, vw, vh, dpr); return; }
+    if (G.fpView && (this.cinema ? G.fpView.ready() : G.fpView.active())) { G.fpView.render(this, ctx, vw, vh, dpr); return; }
     const zoom = (this.zoom = G.clamp(Math.min(vw, vh) / 720, 0.55, 1.5));
     const shx = (Math.random() - 0.5) * G.hud.shake, shy = (Math.random() - 0.5) * G.hud.shake;
     const cx = this.camX, cy = this.camY;
@@ -818,6 +1117,8 @@ G.scenes = G.scenes || {};
       if (c.scale <= 0 || c.x < v.x0 || c.x > v.x1 || c.y < v.y0 || c.y > v.y1) continue;
       G.drawCone(ctx, c);
     }
+    for (const p of this.parked) if (!p.gone && p.x > v.x0 && p.x < v.x1 && p.y > v.y0 && p.y < v.y1) G.drawNpcCar(ctx, p.x, p.y, p.a, p.color);
+    for (const p of this.posts) if (p.scale > 0 && p.x > v.x0 && p.x < v.x1 && p.y > v.y0 && p.y < v.y1) G.drawFlexPost(ctx, p);
     for (const p of this.inspectors) {
       if (p.scale <= 0 || p.x < v.x0 || p.x > v.x1 || p.y < v.y0 || p.y > v.y1) continue;
       G.drawInspector(ctx, p.x, p.y, t + p.ph, p.scale);
@@ -830,29 +1131,89 @@ G.scenes = G.scenes || {};
       G.drawCyclist(ctx, p.x, p.y, p.a, c.t, c.wobble, c.jersey);
     }
     for (const p of potholes.concat(extraSigns)) if (p.sign && p.sx > v.x0 - 150 && p.sx < v.x1 + 150 && p.sy > v.y0 - 80 && p.sy < v.y1 + 80) {
-      G.drawSign(ctx, p.sx, p.sy, p.sign, { bg: p.plaque ? '#5b3a1e' : '#fffbe6', color: p.plaque ? '#f3dfa2' : '#222', border: p.plaque ? '#f3dfa2' : '#222', size: 11 });
+      G.drawSign(ctx, p.sx, p.sy, p.sign, Object.assign({ size: 11 }, signStyle(p)));
     }
 
     this.fx.draw(ctx);
     this.car.draw(ctx);
-    if (this.route && this.route.length > 1 && this.parkSeq < 0) {
+    if (this.route && this.route.length > 1 && this.parkSeq < 0 && !this.cinema) {
       const wp = M.pathAhead(this.route, 130);
       G.hud.drawGuideArrow(ctx, this.car, wp[0], wp[1]);
     }
     this.floaters.draw(ctx);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.drawHud(ctx, vw, vh);
+    if (this.cinema) this.drawCinema(ctx, vw, vh);
+    else this.drawHud(ctx, vw, vh);
   };
+
+  function signStyle(p) {
+    if (p.style) return p.style;
+    return p.plaque ? { bg: '#5b3a1e', color: '#f3dfa2', border: '#f3dfa2' } : { bg: '#fffbe6', color: '#222', border: '#222' };
+  }
+  City.signStyle = signStyle;
 
   // Canyon, potholes and road closures: everything painted on (or dug into) the asphalt.
   City.drawHazards = function (ctx, v) {
     if (CANYON && CANYON.mid.x > v.x0 - 400 && CANYON.mid.x < v.x1 + 400 && CANYON.mid.y > v.y0 - 400 && CANYON.mid.y < v.y1 + 400) this.drawCanyon(ctx, this.t);
-    for (const p of potholes) {
+    this.drawProject(ctx);
+    for (const p of this.livePotholes || potholes) {
       if (p.x < v.x0 || p.x > v.x1 || p.y < v.y0 || p.y > v.y1) continue;
       G.drawPothole(ctx, p, this.t);
     }
     for (const c of CLOSURES) this.drawClosure(ctx, c, v);
+  };
+
+  // Hopkins as far as the paver (fresh asphalt, centerline repainted) and the cycletracks have got
+  function strokeAlong(ctx, s0, s1, lat) {
+    const n = Math.max(1, Math.ceil((s1 - s0) / 12));
+    ctx.beginPath();
+    for (let k = 0; k <= n; k++) {
+      const p = M.pathPoint(hopkins, s0 + ((s1 - s0) * k) / n);
+      const x = p.x - p.dy * lat, y = p.y + p.dx * lat;
+      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+  City.drawProject = function (ctx) {
+    if (!(this.paveS >= 0)) return;
+    ctx.lineCap = 'butt';
+    for (const [sa, sb] of PROJECT.runs) {
+      const pe = Math.min(sb, this.paveS);
+      if (pe > sa) {
+        ctx.strokeStyle = '#38383e';
+        ctx.lineWidth = HOP_HW * 2;
+        strokeAlong(ctx, sa, pe, 0);
+        ctx.strokeStyle = '#f2c230';
+        ctx.lineWidth = 2.5;
+        [-2.5, 2.5].forEach((lat) => strokeAlong(ctx, sa, pe, lat));
+      }
+      const te = Math.min(sb, this.trackS);
+      if (te <= sa) continue;
+      [-1, 1].forEach((side) => {
+        ctx.strokeStyle = '#3fa35b';
+        ctx.lineWidth = 16;
+        strokeAlong(ctx, sa, te, side * PROJECT.track);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        strokeAlong(ctx, sa, te, side * (PROJECT.track - 9));
+      });
+      // bike stencils, pointing with the traffic on each side
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let s = sa + 40; s < te - 20; s += 150) {
+        [-1, 1].forEach((side) => {
+          const p = M.pathPoint(hopkins, s);
+          ctx.save();
+          ctx.translate(p.x - p.dy * side * PROJECT.track, p.y + p.dx * side * PROJECT.track);
+          ctx.rotate(Math.atan2(p.dy, p.dx) + (side < 0 ? Math.PI : 0));
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#fff';
+          [-5, 5].forEach((x) => { ctx.beginPath(); ctx.arc(x, 0, 3.2, 0, Math.PI * 2); ctx.stroke(); });
+          ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(0, -4); ctx.lineTo(5, 0); ctx.stroke();
+          ctx.restore();
+        });
+      }
+    }
   };
 
   // Screen-space HUD, shared by the top-down and 3D views. Expects an identity (×dpr) transform.
@@ -1238,17 +1599,6 @@ G.scenes = G.scenes || {};
         ctx.fillText('P', 0, -45 + bob);
         ctx.font = G.font(11);
         G.outlineText(ctx, s.type === 'phantom' ? 'DEFINITELY REAL' : 'AVAILABLE!', 0, -75 + bob, '#9be7ff', '#000', 3);
-      } else if (s.state === 'ghost') {
-        ctx.globalAlpha = Math.max(0, 1 - s.ghostT / 2.5) * (0.5 + 0.5 * Math.sin(s.ghostT * 30));
-        ctx.setLineDash([6, 4]);
-        ctx.strokeStyle = '#d6f0ff';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x0, y0, s.w, s.h);
-        ctx.setLineDash([]);
-        ctx.font = G.font(10);
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#d6f0ff';
-        ctx.fillText('2019 STUDY', 0, 4);
       } else {
         drawTransformed(ctx, s, this.t, out);
       }
@@ -1297,6 +1647,19 @@ G.scenes = G.scenes || {};
       ctx.fill();
       for (let k = 0; k < 6; k++) G.drawTree(ctx, x0 + 10 + k * 13, k % 2 ? -6 : 6, 7, k % 2);
       sign(['INTERPRETIVE SIGN:', 'HERE STOOD A PARKING SPACE'], { bg: '#5b3a1e', color: '#f3dfa2' });
+    } else if (s.type === 'phantom') {
+      // the bike-only pizza parklet, in the cycletrack: a deck with planters, bike racks and a slice counter
+      ctx.fillStyle = '#b07a45';
+      ctx.fillRect(x0, y0, s.w, s.h);
+      ctx.strokeStyle = '#8a5a2b';
+      ctx.lineWidth = 1;
+      for (let k = 6; k < s.w; k += 7) { ctx.beginPath(); ctx.moveTo(x0 + k, y0); ctx.lineTo(x0 + k, y0 + s.h); ctx.stroke(); }
+      ctx.fillStyle = '#3f8a3a';
+      ctx.fillRect(x0 - 4, y0, 8, s.h);
+      ctx.fillRect(x0 + s.w - 4, y0, 8, s.h);
+      for (let k = 0; k < 3; k++) G.drawBikeRack(ctx, x0 + 14 + k * 15, 0);
+      G.drawPizza(ctx, x0 + s.w - 20, 0, 11, 0, -Math.PI / 2);
+      sign(['BIKE-ONLY PIZZA PARKLET', 'SLICES FOR CYCLISTS'], { bg: '#c0392b', color: '#fff', size: 9 });
     } else if (s.type === 'loading') {
       ctx.fillStyle = '#ffd23f';
       ctx.fillRect(x0, out > 0 ? y0 + s.h : y0 - 4, s.w, 4);
@@ -1449,5 +1812,5 @@ G.scenes = G.scenes || {};
     ctx.restore();
   };
 
-  City.debug = { potholes, CLOSURES, CH, TENT, hopkins, shattuck, SPOT_PLAN, gioia, CANYON };
+  City.debug = { potholes, CLOSURES, CH, TENT, hopkins, shattuck, SPOT_PLAN, gioia, CANYON, PRESERVE, PROJECT };
 })();

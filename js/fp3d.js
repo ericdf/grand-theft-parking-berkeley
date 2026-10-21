@@ -85,6 +85,14 @@ export function create() {
   const farMesh = new THREE.Mesh(new THREE.PlaneGeometry(farCanvas.width / FAR_SCALE, farCanvas.height / FAR_SCALE).rotateX(-Math.PI / 2), basic('#fff', { map: canvasTex(farCanvas) }));
   farMesh.position.set(farCanvas.width / FAR_SCALE / 2, -0.6, farCanvas.height / FAR_SCALE / 2);
   scene.add(farMesh);
+  // the whole-map layer is repainted only when the Hopkins Corridor Project finishes or is undone
+  let farProject = City.groundKey();
+  function refreshFar() {
+    farCtx.setTransform(FAR_SCALE, 0, 0, FAR_SCALE, 0, 0);
+    paintGround(farCtx, allView, false);
+    farMesh.material.map.needsUpdate = true;
+    farProject = City.groundKey();
+  }
 
   const nearCanvas = document.createElement('canvas');
   nearCanvas.width = nearCanvas.height = NEAR_TEX;
@@ -93,7 +101,7 @@ export function create() {
   const nearMesh = new THREE.Mesh(new THREE.PlaneGeometry(NEAR_SPAN, NEAR_SPAN).rotateX(-Math.PI / 2), basic('#fff', { map: nearTex }));
   scene.add(nearMesh);
   const near = { x: -1e9, y: -1e9, key: '' };
-  const spotKey = () => City.spots.map((s) => s.state).join();
+  const spotKey = () => City.spots.map((s) => s.state).join() + '|' + City.groundKey();
   function refreshNear(cx, cy) {
     const sc = NEAR_TEX / NEAR_SPAN;
     const v = { x0: cx - NEAR_SPAN / 2, y0: cy - NEAR_SPAN / 2, x1: cx + NEAR_SPAN / 2, y1: cy + NEAR_SPAN / 2 };
@@ -418,12 +426,20 @@ export function create() {
     }
     for (const p of world.potholes.concat(world.extraSigns)) {
       if (!p.sign) continue;
-      const o = { bg: p.plaque ? '#5b3a1e' : '#fffbe6', color: p.plaque ? '#f3dfa2' : '#222', border: p.plaque ? '#f3dfa2' : '#222', size: 11 };
+      const o = Object.assign({ size: 11 }, City.signStyle(p));
       scene.add(signOnPost(p.sign, o, p.sx, p.sy, faceRoad(p.sx, p.sy), 8 + 6 * p.sign.length, 10));
     }
   }
 
   // ---------- cones and inspectors (instanced; dynamic) ----------
+  // Hopkins before the project: parked cars along both curbs. After it: flex posts along the cycletracks.
+  const MAX_PARKED = City.world.project.parked.length || 1, MAX_POSTS = City.world.project.posts.length || 1;
+  const parkedBody = new THREE.InstancedMesh(boxBase(), lambert('#fff'), MAX_PARKED);
+  const parkedCab = new THREE.InstancedMesh(boxBase(), lambert('#2b3d52'), MAX_PARKED);
+  City.world.project.parked.forEach((p, i) => parkedBody.setColorAt(i, tmpC.set(p.color)));
+  const postMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.2, 2.2, 18, 8).translate(0, 9, 0), lambert('#f4f4f4'), MAX_POSTS);
+  const postBand = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.4, 2.4, 3, 8).translate(0, 14, 0), basic('#e03030'), MAX_POSTS);
+  scene.add(parkedBody, parkedCab, postMesh, postBand);
   const coneMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(4, 12, 10).translate(0, 6, 0), lambert('#ff7a1a'), City.cones ? City.cones.length : 2000);
   coneMesh.frustumCulled = false;
   scene.add(coneMesh);
@@ -565,13 +581,28 @@ export function create() {
       sign(['INTERPRETIVE SIGN:', 'HERE STOOD A PARKING SPACE'], { bg: '#5b3a1e', color: '#f3dfa2' });
     } else if (s.type === 'loading') {
       sign(['15-SECOND', 'LOADING ONLY'], { bg: '#ffd23f' });
+    } else if (s.type === 'phantom') {
+      // the bike-only pizza parklet: deck, planters at the ends, bike racks
+      const deck = new THREE.Mesh(boxBase(), lambert('#b07a45'));
+      deck.scale.set(s.w, 3, s.h);
+      done.add(deck);
+      [-1, 1].forEach((e) => {
+        const pl = new THREE.Mesh(boxBase(), lambert('#3f8a3a'));
+        pl.scale.set(6, 8, s.h);
+        pl.position.x = (e * (s.w - 6)) / 2;
+        done.add(pl);
+      });
+      for (let k = 0; k < 3; k++) {
+        const hoop = new THREE.Mesh(new THREE.TorusGeometry(5, 0.8, 6, 12, Math.PI), lambert('#c0c0c0'));
+        hoop.position.set(-s.w / 2 + 16 + k * 15, 3, 0);
+        hoop.rotation.y = Math.PI / 2;
+        done.add(hoop);
+      }
+      sign(['BIKE-ONLY PIZZA PARKLET', 'SLICES FOR CYCLISTS'], { bg: '#c0392b', color: '#fff' });
     }
     root.add(done);
-    const ghost = new THREE.Mesh(boxBase(), basic('#d6f0ff', { transparent: true, opacity: 0.4, depthWrite: false }));
-    ghost.scale.set(s.w, 18, s.h);
-    root.add(ghost);
     scene.add(root);
-    return { s, root, avail, done, ghost };
+    return { s, root, avail, done };
   }
   const backOut = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
   function updateSpots(t) {
@@ -585,10 +616,8 @@ export function create() {
       const st = o.s.state;
       o.avail.visible = st === 'avail';
       o.done.visible = st === 'done';
-      o.ghost.visible = st === 'ghost';
       if (st === 'avail') o.avail.userData.icon.position.y = 52 + Math.sin(t * 4) * 4;
       if (st === 'done') { const k = Math.max(0.01, backOut(o.s.pop)); o.done.scale.set(k, k, k); }
-      if (st === 'ghost') o.ghost.material.opacity = Math.max(0, 1 - o.s.ghostT / 2.5) * (0.25 + 0.25 * Math.sin(o.s.ghostT * 30));
     }
   }
 
@@ -821,24 +850,34 @@ export function create() {
     shadow.scale.set(sh, 1, sh);
     shadow.material.opacity = 1 / sh;
 
-    // chase camera: behind and above, swinging round after the car rather than locked to it
-    if (camYaw === null || G.game.fade >= 1) camYaw = car.a;
-    camYaw += G.wrapAngle(car.a - camYaw) * Math.min(1, dt * (car.airborne ? 1.2 : 3.5));
-    const cfx = Math.sin(camYaw), cfy = -Math.cos(camYaw);
-    const shake = G.hud.shake * calm * 0.35;
-    camera.position.set(
-      car.x - cfx * CHASE_BACK + (Math.random() - 0.5) * shake,
-      CHASE_UP + car.z * 0.6 + (Math.random() - 0.5) * shake,
-      car.y - cfy * CHASE_BACK);
-    camera.lookAt(car.x + cfx * 90, 6 + car.z * 0.8, car.y + cfy * 90);
+    // intermission: a scripted camera (see City.cinemaCam)
+    const cine = C.cinema ? C.cinemaCam() : null;
+    if (cine) {
+      camYaw = null;
+      camera.position.set(cine.x, cine.h, cine.y);
+      camera.lookAt(cine.lx, cine.lh, cine.ly);
+    } else {
+      // chase camera: behind and above, swinging round after the car rather than locked to it
+      if (camYaw === null || G.game.fade >= 1) camYaw = car.a;
+      camYaw += G.wrapAngle(car.a - camYaw) * Math.min(1, dt * (car.airborne ? 1.2 : 3.5));
+      const cfx = Math.sin(camYaw), cfy = -Math.cos(camYaw);
+      const shake = G.hud.shake * calm * 0.35;
+      camera.position.set(
+        car.x - cfx * CHASE_BACK + (Math.random() - 0.5) * shake,
+        CHASE_UP + car.z * 0.6 + (Math.random() - 0.5) * shake,
+        car.y - cfy * CHASE_BACK);
+      camera.lookAt(car.x + cfx * 90, 6 + car.z * 0.8, car.y + cfy * 90);
+    }
+    const focus = cine ? { x: cine.lx, y: cine.ly } : car;
 
-    // sharp ground layer, centered ahead of the car
-    const ncx = car.x + fx * 420, ncy = car.y + fy * 420;
+    // sharp ground layer, centered ahead of the car (or on what the intermission is looking at)
+    const ncx = cine ? cine.lx : car.x + fx * 420, ncy = cine ? cine.ly : car.y + fy * 420;
     if (G.dist(ncx, ncy, near.x, near.y) > 240 || near.key !== spotKey()) refreshNear(ncx, ncy);
+    if (!C.cinema && farProject !== C.groundKey()) refreshFar();
     updateRouteLine(C);
     updateRuts(C);
 
-    updateStoreSigns(car);
+    updateStoreSigns(focus);
     updateSpots(t);
     chMarker.visible = C.phase === 'toCityHall';
     if (chMarker.visible) chMarker.children[0].scale.setScalar(1 + Math.sin(t * 5) * 0.06);
@@ -849,7 +888,7 @@ export function create() {
     // cones: standing, or knocked flat and tumbling
     let n = 0;
     for (const c of C.cones) {
-      if (c.scale <= 0 || Math.abs(c.x - car.x) > 1900 || Math.abs(c.y - car.y) > 1900) continue;
+      if (c.scale <= 0 || Math.abs(c.x - focus.x) > 1900 || Math.abs(c.y - focus.y) > 1900) continue;
       euler.set(c.down ? Math.PI / 2 : 0, -c.rot, 0, 'YXZ');
       tmpQ.setFromEuler(euler);
       tmpM.compose(tmpP.set(c.x, c.down ? 4 : 0, c.y), tmpQ, tmpS.setScalar(c.scale));
@@ -857,10 +896,28 @@ export function create() {
     }
     coneMesh.count = n;
     coneMesh.instanceMatrix.needsUpdate = true;
+    // parked cars keep their instance slot (and color); gone ones shrink to nothing
+    C.parked.forEach((p, i) => {
+      const k = p.gone ? 0 : 1;
+      setInst(parkedBody, i, p.x, 0, p.y, p.a, 24 * k, 11 * k, 44 * k);
+      setInst(parkedCab, i, p.x, 11, p.y, p.a, 20 * k, 8 * k, 22 * k);
+    });
+    [parkedBody, parkedCab].forEach((m) => { m.count = C.parked.length; m.instanceMatrix.needsUpdate = true; });
+    n = 0;
+    for (const p of C.posts) {
+      if (p.scale <= 0 || Math.abs(p.x - focus.x) > 1900 || Math.abs(p.y - focus.y) > 1900) continue;
+      euler.set(p.down ? Math.PI / 2 : 0, -p.rot, 0, 'YXZ');
+      tmpQ.setFromEuler(euler);
+      tmpM.compose(tmpP.set(p.x, p.down ? 1.6 : 0, p.y), tmpQ, tmpS.set(1, G.smoothstep(p.scale), 1));
+      postMesh.setMatrixAt(n, tmpM);
+      postBand.setMatrixAt(n, tmpM);
+      n++;
+    }
+    [postMesh, postBand].forEach((m) => { m.count = n; m.instanceMatrix.needsUpdate = true; });
     n = 0;
     for (const p of C.inspectors) {
       if (n >= 2000) break;
-      if (p.scale <= 0 || Math.abs(p.x - car.x) > 1900 || Math.abs(p.y - car.y) > 1900) continue;
+      if (p.scale <= 0 || Math.abs(p.x - focus.x) > 1900 || Math.abs(p.y - focus.y) > 1900) continue;
       const k = p.scale, bob = Math.abs(Math.sin((t + p.ph) * 3)) * 1.5;
       const face = Math.atan2(car.x - p.x, -(car.y - p.y)); // inspectors watch you
       setInst(inspBody, n, p.x, bob, p.y, face, k, k, k);
@@ -912,6 +969,7 @@ export function create() {
       G.outlineText(ctx, f.text, q.sx, q.sy, f.color, '#000', 4);
     }
     ctx.globalAlpha = 1;
+    if (cine) { C.drawCinema(ctx, vw, vh); return; }
     drawSpeedo(ctx, vw, vh, car);
     drawGuide(ctx, vw, vh, C);
     C.drawHud(ctx, vw, vh);

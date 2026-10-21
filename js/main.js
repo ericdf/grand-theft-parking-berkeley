@@ -62,6 +62,7 @@
     this.playing = true;
     this.paused = false;
     const jumps = {
+      corridor: ['city', { phase: 'drive1', corridor: true }],
       hopkins: ['city', { phase: 'hopkins' }],
       cityhall: ['city', { phase: 'toCityHall' }],
       council: ['council'],
@@ -71,8 +72,8 @@
     const j = jumps[startAt];
     if (j) {
       // debug/test jumps: give the stats a plausible history
-      G.stats.stars = { hopkins: 0, cityhall: 3, council: 3, slalom: 4, finale: 5 }[startAt];
-      G.stats.committees = { hopkins: 0, cityhall: 2, council: 2, slalom: 5, finale: 7 }[startAt];
+      G.stats.stars = { corridor: 0, hopkins: 0, cityhall: 3, council: 3, slalom: 4, finale: 5 }[startAt];
+      G.stats.committees = { corridor: 0, hopkins: 0, cityhall: 2, council: 2, slalom: 5, finale: 7 }[startAt];
       this.switchNow(j[0], j[1]);
     } else {
       this.switchNow('city', { phase: 'drive1' });
@@ -171,6 +172,7 @@
     $('optHazards').checked = s.hazards;
     $('optMinimap').checked = s.minimap;
     $('optFp').checked = s.view === 'fp';
+    $('optAutopilot').checked = s.autopilot;
   }
 
   function applySettings() {
@@ -224,6 +226,7 @@
     bind('optHazards', 'hazards', (el) => el.checked);
     bind('optMinimap', 'minimap', (el) => el.checked);
     bind('optFp', 'view', (el) => (el.checked ? 'fp' : 'top'));
+    bind('optAutopilot', 'autopilot', (el) => el.checked);
     $('optSfx').addEventListener('change', () => G.audio.play('boing'));
     applySettings();
   }
