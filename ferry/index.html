@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Field of Schemes</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="FIELD OF SCHEMES — A Berkeley Ferry Tale. An animated satirical cartoon about a proposed ferry terminal at the Berkeley Marina.">
+  <meta property="og:title" content="Field of Schemes — A Berkeley Ferry Tale">
+  <meta property="og:description" content="If you build it, they will come. Unless they don't. An animated satire.">
+  <link rel="stylesheet" href="css/film.css">
+</head>
+<body>
+  <main id="player" class="player" aria-label="Field of Schemes film player">
+    <div id="stageWrap" class="stage-wrap">
+      <canvas id="stage" width="1920" height="1080" role="img" aria-label="Animated cartoon. Captions describe the dialogue and sounds."></canvas>
+      <div id="captions" class="captions" aria-live="polite"></div>
+      <div id="splash" class="splash">
+        <div class="splash-card">
+          <p class="kicker">AN ANIMATED SATIRE · ABOUT 8 MINUTES</p>
+          <h1>FIELD OF SCHEMES</h1>
+          <p class="sub">A Berkeley Ferry Tale</p>
+          <button id="bigPlay" class="big-play" aria-label="Play the film">▶ PLAY</button>
+          <p class="fine">Captions are on.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" role="group" aria-label="Playback controls">
+      <button id="playBtn" class="ctl" aria-label="Play" title="Play / pause (Space)">▶</button>
+      <button id="replayBtn" class="ctl" aria-label="Replay from the start" title="Replay">⟲</button>
+      <span id="time" class="time" aria-live="off">0:00 / 0:00</span>
+      <div class="scrub-wrap">
+        <input id="scrub" class="scrub" type="range" min="0" max="1000" step="0.1" value="0" aria-label="Seek">
+        <div id="ticks" class="ticks" aria-hidden="true"></div>
+      </div>
+      <button id="muteBtn" class="ctl" aria-label="Mute" title="Mute (M)">🔊</button>
+      <input id="vol" class="vol" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="Volume">
+      <button id="ccBtn" class="ctl on" aria-label="Captions on" aria-pressed="true" title="Captions (C)">CC</button>
+      <button id="scenesBtn" class="ctl wide" aria-haspopup="dialog" aria-controls="scenesPanel" title="Scenes">Scenes</button>
+    </div>
+  </main>
+
+  <dialog id="scenesPanel" class="panel" aria-labelledby="scenesTitle">
+    <div class="panel-head"><h2 id="scenesTitle">Scenes</h2><button class="ctl close" aria-label="Close">✕</button></div>
+    <ol id="sceneList" class="scene-list"></ol>
+  </dialog>
+
+
+  <script src="js/core.js"></script>
+  <script src="js/script.js"></script>
+  <script src="js/marina-geo.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/people.js"></script>
+  <script src="js/marina.js"></script>
+  <script src="js/scenes/s01-promise.js"></script>
+  <script src="js/scenes/s02-ferry.js"></script>
+  <script src="js/scenes/s03-treasury.js"></script>
+  <script src="js/scenes/s04-miracle.js"></script>
+  <script src="js/scenes/s05-price.js"></script>
+  <script src="js/scenes/s06-wise.js"></script>
+  <script src="js/scenes/s07-consent.js"></script>
+  <script src="js/scenes/s08-subsidy.js"></script>
+  <script src="js/scenes/s09-fitness.js"></script>
+  <script src="js/scenes/s10-resilience.js"></script>
+  <script src="js/scenes/s11-ever-after.js"></script>
+  <script src="audio/manifest.js"></script>
+  <script src="js/sfx.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

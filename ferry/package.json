@@ -1,0 +1,12 @@
+{
+  "name": "field-of-schemes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FIELD OF SCHEMES — A Berkeley Ferry Tale. An animated satirical cartoon that plays in the browser.",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "build": "node tools/build.mjs",
+    "preview": "node tools/serve.mjs dist"
+  },
+  "license": "UNLICENSED"
+}
