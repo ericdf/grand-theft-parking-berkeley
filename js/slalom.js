@@ -586,26 +586,10 @@
     this.drawProgress(ctx, vw, vh);
     this.drawWarning(ctx, vw, vh);
     this.drawCallout(ctx, vw, vh);
-    if (G.settings.autopilot) this.drawAutopilot(ctx, vw, vh);
+    if (G.settings.autopilot) G.hud.drawAutopilot(ctx, vw, vh, this.t);
     G.hud.drawToasts(ctx, vw, vh);
     G.hud.drawTicker(ctx, vw, vh);
     G.hud.drawBanner(ctx, vw, vh);
-  };
-
-  S.drawAutopilot = function (ctx, vw, vh) {
-    const y = vh - 62 - (G.settings.radio ? 24 : 0);
-    ctx.font = G.font(13);
-    const text = 'AUTOPILOT · O TO TAKE THE WHEEL';
-    const w = ctx.measureText(text).width + 24;
-    ctx.globalAlpha = 0.75 + 0.25 * Math.sin(this.t * 4);
-    ctx.fillStyle = 'rgba(15,20,30,0.82)';
-    G.rr(ctx, vw / 2 - w / 2, y - 14, w, 28, 14);
-    ctx.fill();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#9be7ff';
-    ctx.fillText(text, vw / 2, y + 1);
-    ctx.globalAlpha = 1;
   };
 
   S.drawLandmarks = function (ctx, s0, s1) {

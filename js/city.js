@@ -443,6 +443,7 @@ G.scenes = G.scenes || {};
     this.route = null;
     this.routeT = 0;
     this.parkSeq = -1;
+    this.pilotState = null;
     this.lastLand = null;
     this.chEntered = false;
     this.tracks = [];   // tire ruts in the grass: [x0, y0, x1, y1] per wheel, newest last
@@ -673,12 +674,101 @@ G.scenes = G.scenes || {};
     else if (car.chainAir > 0.62) this.floaters.add(car.x, car.y - 30, 'SICK AIR!', '#9be7ff', 1.4, 16);
   };
 
+  // ---------- autopilot ----------
+  // Drives the same route the yellow arrow shows, with the same inputs a player has: pure pursuit
+  // along the route, a nudge around craters, braking for corners, cyclists and the destination.
+  const IDLE = { up: false, back: false, left: false, right: false, hand: false };
+  City.pilot = function (dt) {
+    const car = this.car, P = this.pilotState || (this.pilotState = { stuck: 0, rev: 0, file: false });
+    P.file = false;
+    if (car.locked || this.cinema || car.airborne) return IDLE;
+    const tg = this.target();
+    if (!tg || !this.route || this.route.length < 2 || (this.phase === 'hopkins' && this.parkSeq >= 0)) return Object.assign({}, IDLE, { back: car.fwd > 5 });
+    const route = [[car.x, car.y], ...this.route.slice(1)];
+    let left = 0;
+    for (let k = 0; k < route.length - 1; k++) left += G.dist(route[k][0], route[k][1], route[k + 1][0], route[k + 1][1]);
+
+    const spot = this.phase === 'hopkins' && this.spots[this.spotIdx];
+    const parking = spot && spot.type === 'phantom' && spot.state === 'avail';
+    const cityHall = this.phase === 'toCityHall';
+    // arrived: hold still (and, at the tent, file the appeal)
+    if (cityHall && G.dist(car.x, car.y, CH.x, CH.y) < CH.r * 0.6) {
+      if (car.speed < 30) P.file = true;
+      return Object.assign({}, IDLE, { back: car.fwd > 5 });
+    }
+
+    // speed: cruise, slow for the bend ahead, stop at the end of the route if there is something to stop for
+    const v = Math.max(40, car.fwd);
+    const look = Math.min(left, 40 + v * 0.4);
+    const ahead = (d) => M.pathAhead(route, Math.min(left, d));
+    const dirAt = (d) => { const a = ahead(d), b = ahead(d + 30); return Math.atan2(b[0] - a[0], -(b[1] - a[1])); };
+    const bend = Math.max(Math.abs(G.wrapAngle(dirAt(60) - car.a)), Math.abs(G.wrapAngle(dirAt(150) - car.a)) * 0.8);
+    let speed = G.lerp(230, 70, G.clamp(bend / 1.3, 0, 1));
+    if (parking || cityHall) speed = Math.min(speed, Math.sqrt(2 * 380 * Math.max(0, left - (parking ? 4 : 40))));
+    if (parking && left < 40) speed = Math.min(speed, 25);
+
+    // aim point, nudged clear of craters near the line
+    let [tx, ty] = ahead(look);
+    if (!parking || left > 120) {
+      const [ax, ay] = ahead(look + 30);
+      const ux = (ax - tx) / 30, uy = (ay - ty) / 30;
+      for (const p of this.livePotholes) {
+        if (Math.abs(p.x - car.x) > look + 120 || Math.abs(p.y - car.y) > look + 120) continue;
+        const rx = p.x - car.x, ry = p.y - car.y;
+        const along = rx * Math.sin(car.a) - ry * Math.cos(car.a);
+        if (along < 10 || along > look + 90) continue;
+        const lat = (p.x - tx) * -uy + (p.y - ty) * ux;
+        if (Math.abs(lat) > p.r + 22) continue;
+        const shove = (lat > 0 ? -1 : 1) * (p.r + 24 - Math.abs(lat));
+        tx += -uy * shove; ty += ux * shove;
+        break;
+      }
+    }
+
+    // let cyclists in our path get clear
+    for (const c of this.cyclists) {
+      const p = this.cyclistPos(c);
+      const rx = p.x - car.x, ry = p.y - car.y;
+      const along = rx * Math.sin(car.a) - ry * Math.cos(car.a), lat = rx * Math.cos(car.a) + ry * Math.sin(car.a);
+      if (along > 0 && along < 160 && Math.abs(lat) < 30) speed = Math.min(speed, Math.max(0, along - 40) * 1.2);
+    }
+
+    const want = Math.atan2(tx - car.x, -(ty - car.y));
+    let err = G.wrapAngle(want - car.a) - car.spin * 0.08;
+
+    // wedged against something: back out, steering the other way, and give up with a reset if that fails
+    const pushing = speed > 30;
+    P.stuck = pushing && car.speed < 20 && P.rev <= 0 ? P.stuck + dt : Math.max(0, P.stuck - dt * 2);
+    if (P.stuck > 1.2) { P.rev = 0.9; P.stuck = 0; P.revs = (P.revs || 0) + 1; }
+    if (P.revs > 3) { P.revs = 0; this.resetCarToRoad(); return IDLE; }
+    if (car.speed > 80) P.revs = 0;
+    if (P.rev > 0) {
+      P.rev -= dt;
+      return { up: false, back: true, left: err > 0, right: err < 0, hand: false };
+    }
+    // a hairpin: brake and swing round rather than orbit the waypoint
+    if (Math.abs(err) > 1.4 && car.fwd > 60) speed = 0;
+    return {
+      up: car.fwd < speed - 8,
+      back: car.fwd > speed + 25,
+      left: err < -0.05,
+      right: err > 0.05,
+      hand: false,
+    };
+  };
+
   City.update = function (dt) {
     this.t += dt;
     const car = this.car;
     const inp = G.input;
     if (inp.resetCar() && !car.locked) this.resetCarToRoad();
-    car.update(dt, inp);
+    if (inp.was('KeyO')) {
+      G.settings.autopilot = !G.settings.autopilot;
+      G.saveSettings();
+      G.hud.toast(G.settings.autopilot ? 'AUTOPILOT ENGAGED. IT KNOWS A GUY AT THE PERMIT OFFICE.' : 'AUTOPILOT OFF. YOUR WHEEL, YOUR CRATERS.', { color: '#9be7ff', dur: 2.5 });
+    }
+    const pilot = G.settings.autopilot ? this.pilot(dt) : null;
+    car.update(dt, pilot || inp);
 
     const hit = car.checkPotholes(this.livePotholes);
     if (hit) {
@@ -765,7 +855,7 @@ G.scenes = G.scenes || {};
       const inZone = G.dist(car.x, car.y, CH.x, CH.y) < CH.r;
       if (inZone && !this.chEntered) { this.chEntered = true; G.audio.play('blip'); }
       if (!inZone) this.chEntered = false;
-      if (inZone && inp.interact()) {
+      if (inZone && (inp.interact() || (pilot && this.pilotState.file))) {
         G.audio.play('select');
         G.game.go('council');
       }
@@ -1228,6 +1318,7 @@ G.scenes = G.scenes || {};
       if (s && s.type === 'phantom' && s.state === 'avail' && G.dist(this.car.x, this.car.y, s.x, s.y) < 160) this.drawPrompt(ctx, vw, vh, 'STOP INSIDE THE SPACE TO PARK');
     }
     this.drawMinimap(ctx, vw, vh);
+    if (G.settings.autopilot && !this.cinema) G.hud.drawAutopilot(ctx, vw, vh, this.t);
     G.hud.drawToasts(ctx, vw, vh);
     G.hud.drawTicker(ctx, vw, vh);
     G.hud.drawBanner(ctx, vw, vh);

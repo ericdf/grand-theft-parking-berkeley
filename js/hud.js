@@ -157,6 +157,24 @@
     ctx.restore();
   };
 
+  // the "the game is driving" pill (slalom and city autopilot)
+  H.drawAutopilot = function (ctx, vw, vh, t) {
+    const y = vh - 62 - (G.settings.radio ? 24 : 0);
+    ctx.save();
+    ctx.font = G.font(13);
+    const text = 'AUTOPILOT · O TO TAKE THE WHEEL';
+    const w = ctx.measureText(text).width + 24;
+    ctx.globalAlpha = 0.75 + 0.25 * Math.sin(t * 4);
+    ctx.fillStyle = 'rgba(15,20,30,0.82)';
+    G.rr(ctx, vw / 2 - w / 2, y - 14, w, 28, 14);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#9be7ff';
+    ctx.fillText(text, vw / 2, y + 1);
+    ctx.restore();
+  };
+
   H.drawToasts = function (ctx, w, h, bottomPad = 0) {
     ctx.save();
     ctx.textAlign = 'center';

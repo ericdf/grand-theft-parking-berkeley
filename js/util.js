@@ -115,7 +115,7 @@ G.settings = {
   hazards: true,
   minimap: true,
   view: 'top', // 'top' or 'fp' (3D chase view, city only)
-  autopilot: false, // the slalom drives itself: watch a skilled run
+  autopilot: false, // the slalom and city missions drive themselves: watch a skilled run
 };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);
