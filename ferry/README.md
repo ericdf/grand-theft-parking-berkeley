@@ -32,8 +32,9 @@ Upload `dist/` (or this folder) to any static host. The page carries `<meta name
 | Mute | M |
 | Captions | C |
 | Start / end | Home / End |
+| Full screen | F (Esc to leave) |
 
-The scrubber has a tick at each scene boundary, and **Scenes** opens a menu of all eleven scenes. Captions are on by default because the film ships without recorded narration. Large captions sit low on the picture. On a phone held upright they move below the picture so they never cover it. With `prefers-reduced-motion`, wobbles, iris wipes and shakes switch off. You can also force that with `?reduced`.
+The scrubber has a tick at each scene boundary, and **Scenes** opens a menu of all eleven scenes. Captions are on by default because the film ships without recorded narration. Large captions sit low on the picture. On a phone held upright they move below the picture so they never cover it. The ⛶ button goes full screen. On iPhone, where Safari only allows real full screen for video, the player fills the window instead (turn the phone sideways). In full screen the controls fade while the film plays, and any touch brings them back. Sound plays through the iPhone silent switch. With `prefers-reduced-motion`, wobbles, iris wipes and shakes switch off. You can also force that with `?reduced`.
 
 Preview URLs: `?t=95` starts at 95 s, `?scene=consent` starts at a scene, and `&still` renders that frame paused with no splash. `tools/frames.sh OUTDIR 12 40 300` saves stills with headless Chrome while a local server runs on :8000.
 

@@ -5,6 +5,8 @@
   const S = (F.sfx = { ctx: null, gain: null, volume: 0.8, muted: false });
 
   S.unlock = () => {
+    // iPhone: play through the ring/silent switch, like a video would
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older Safari */ }
     if (S.ctx) { if (S.ctx.state === 'suspended') S.ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
@@ -12,6 +14,11 @@
     S.gain = S.ctx.createGain();
     S.gain.connect(S.ctx.destination);
     S.apply();
+    // a silent blip inside the tap that unlocked us keeps older iOS from staying muted
+    const src = S.ctx.createBufferSource();
+    src.buffer = S.ctx.createBuffer(1, 1, 22050);
+    src.connect(S.ctx.destination);
+    src.start(0);
   };
   S.apply = () => { if (S.gain) S.gain.gain.value = S.muted ? 0 : S.volume * 0.5; };
 

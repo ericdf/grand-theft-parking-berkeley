@@ -146,7 +146,40 @@
     playBtn.textContent = p ? '❚❚' : '▶';
     playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play');
     syncNarration(true);
+    poke();
   }
+
+  // ---------- full screen ----------
+  // Real full screen where the browser allows it on an element (desktop, Android, iPad);
+  // on iPhone, which only allows it for <video>, the player still fills the window.
+  const player = $('player'), fsBtn = $('fsBtn');
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function setFull(on) {
+    player.classList.toggle('full', on);
+    fsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    if (on && !fsElement()) {
+      const req = player.requestFullscreen || player.webkitRequestFullscreen;
+      if (req) {
+        try {
+          const r = req.call(player);
+          if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } }).catch(() => {});
+        } catch (e) { /* fall back to filling the window */ }
+      }
+    } else if (!on && fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
+    poke();
+  }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => { if (!fsElement() && player.classList.contains('full')) setFull(false); }));
+  fsBtn.addEventListener('click', () => setFull(!player.classList.contains('full')));
+  // controls fade out after a moment of playing in full screen; any touch or mouse move brings them back
+  let idleTimer = 0;
+  function poke() {
+    player.classList.remove('idle');
+    clearTimeout(idleTimer);
+    if (player.classList.contains('full') && state.playing) idleTimer = setTimeout(() => player.classList.add('idle'), 2500);
+  }
+  ['pointermove', 'pointerdown', 'keydown'].forEach((ev) => player.addEventListener(ev, poke));
 
   // ---------- controls ----------
   const playBtn = $('playBtn'), scrub = $('scrub'), timeEl = $('time');
@@ -213,6 +246,8 @@
     else if (e.code === 'ArrowRight') { e.preventDefault(); seek(state.t + (e.shiftKey ? 15 : 5)); }
     else if (e.code === 'KeyM') setMuted(!F.sfx.muted);
     else if (e.code === 'KeyC') setCaptions(!state.captions);
+    else if (e.code === 'KeyF') setFull(!player.classList.contains('full'));
+    else if (e.code === 'Escape' && player.classList.contains('full')) setFull(false);
     else if (e.code === 'Home') seek(0);
     else if (e.code === 'End') seek(F.TOTAL - 0.05);
     else if (e.code === 'PageDown' || e.code === 'KeyN') { const s = F.sceneAt(state.t); const n = F.SCRIPT[s.index + 1]; if (n) seek(n.start + 0.01); }

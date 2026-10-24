@@ -59,6 +59,12 @@ body { display: flex; align-items: center; justify-content: center; overflow: hi
 .scene-list button:hover, .scene-list button.current { background: #222938; }
 .scene-list .n { color: var(--accent); font-weight: 800; margin-right: 10px; }
 .scene-list .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* full screen: the picture fills the screen, and the controls float over it and fade while the film plays */
+.player.full { position: fixed; inset: 0; z-index: 50; background: #000; }
+.player.full .controls { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(23, 28, 38, 0.86); transition: opacity 0.3s; }
+.player.full.idle .controls { opacity: 0; pointer-events: none; }
+.player.full.idle { cursor: none; }
+.ctl svg { display: block; margin: 0 auto; }
 @media (max-width: 640px) {
   .vol, #replayBtn { display: none; }
   .controls { flex-wrap: wrap; gap: 6px; padding-left: 10px; padding-right: 10px; }
