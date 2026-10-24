@@ -158,7 +158,7 @@
     this.car.locked = true;
     this.cd = 0;
     G.hud.banner('SLICE LOST', 'THE PROVISIONAL SLICE HAS BEEN RECLAIMED BY THE STREET. RETRYING…', { sting: 'fail', dur: 3, color: '#ff5a5a' });
-    if (!G.settings.autopilot) G.hud.toast('STUCK? PRESS O (OR PAUSE → OPTIONS) AND LET THE AUTOPILOT DRIVE', { color: '#9be7ff', dur: 6 });
+    if (!G.settings.autopilot) G.hud.toast(document.body.classList.contains('has-touch') ? 'STUCK? TAP AUTO AND LET THE AUTOPILOT DRIVE' : 'STUCK? PRESS O (OR PAUSE → OPTIONS) AND LET THE AUTOPILOT DRIVE', { color: '#9be7ff', dur: 6 });
   };
 
   // ---------- autopilot ----------

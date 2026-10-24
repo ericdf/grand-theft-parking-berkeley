@@ -497,7 +497,7 @@ G.scenes = G.scenes || {};
 
   City.startHopkins = function (fromCheckpoint) {
     this.phase = 'hopkins';
-    if (!fromCheckpoint) G.hud.banner('MISSION PASSED', 'YOU REACHED HOPKINS. SO DID THE PAVER.', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
+    if (!fromCheckpoint) G.hud.banner('MISSION PASSED', 'YOU REACHED HOPKINS. GOOD LUCK PARKING.', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
     G.game.setCheckpoint('city', { phase: 'hopkins' });
     G.hud.banner('MISSION START', 'THE HOPKINS PARKING HEIST', { sting: 'start', dur: 2.8 });
     G.hud.setObjective('FIND ONE LEGAL PARKING SPACE. BUY ONE SLICE AT GIOIA.', 'Hopkins has no parking now. Follow the P marker to the side streets.');

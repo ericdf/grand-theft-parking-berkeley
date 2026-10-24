@@ -287,6 +287,7 @@
       ctx.fillStyle = 'rgba(0,0,0,' + game.fade + ')';
       ctx.fillRect(0, 0, w, h);
     }
+    G.input.syncTouch();
     G.input.endFrame();
     requestAnimationFrame(frame);
   }

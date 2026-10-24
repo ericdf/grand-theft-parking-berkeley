@@ -73,6 +73,7 @@
         if (k === 'map') { I.pressed.KeyM = true; return; }
         if (k === 'view') { I.pressed.KeyV = true; return; }
         if (k === 'reset') { I.pressed.Space = true; return; }
+        if (k === 'pilot') { I.pressed.KeyO = true; return; }
         I.touch[k] = true;
         btn.classList.add('on');
       };
@@ -86,5 +87,10 @@
       btn.addEventListener('pointercancel', off);
       btn.addEventListener('pointerleave', off);
     });
+    I.pilotBtn = wrap.querySelector('[data-t="pilot"]');
+  };
+  // the AUTO button stays lit while the autopilot drives
+  I.syncTouch = function () {
+    if (this.pilotBtn) this.pilotBtn.classList.toggle('on', !!G.settings.autopilot);
   };
 })();

@@ -162,7 +162,7 @@
     const y = vh - 62 - (G.settings.radio ? 24 : 0);
     ctx.save();
     ctx.font = G.font(13);
-    const text = 'AUTOPILOT · O TO TAKE THE WHEEL';
+    const text = document.body.classList.contains('has-touch') ? 'AUTOPILOT · TAP AUTO TO TAKE THE WHEEL' : 'AUTOPILOT · O TO TAKE THE WHEEL';
     const w = ctx.measureText(text).width + 24;
     ctx.globalAlpha = 0.75 + 0.25 * Math.sin(t * 4);
     ctx.fillStyle = 'rgba(15,20,30,0.82)';
