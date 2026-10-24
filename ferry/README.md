@@ -66,6 +66,10 @@ tools/                build-marina.py, serve.mjs, build.mjs, frames.sh
 
 Everything is original vector-style drawing on a 1920×1080 canvas. To swap in illustrated assets, put images in `assets/`, load them once (e.g. `const img = new Image(); img.src = 'assets/pig.png'`), and draw them in the scene renderer in place of the kit call, such as `F.people.pig`. Positions and timings stay where they are. Keep the recurring designs consistent: the cast is defined in one place (`F.people.CAST`).
 
+## Voices (in review)
+
+`node tools/build-voices.mjs` renders every spoken line with the free macOS `say` voices, one voice per character (the `CAST` table at the top of the tool). It writes `audio/voices/*.m4a` plus `audio/voices/index.js`, and re-renders any line that would run into the next one a little faster. **dialogue.html** lists every line in film order with a play button. The film plays them only with `?voices` in the URL until they're approved. Better free voices can be downloaded in System Settings → Accessibility → Spoken Content → System Voice → Manage Voices. Add one to `CAST` and re-run the tool.
+
 ## Adding voiceover
 
 Record the lines in `js/script.js`. The `hold: true` cues mark deliberate comedic pauses: "Sometimes.", "It's a very healthy fund.", "The grants.", "That's what the emergency is." and "Put it on consent." Then map the files in `audio/manifest.js`, either one file per scene (`F.AUDIO_TRACKS`) or one for the whole film (`F.AUDIO_FILM`). The player keeps narration in sync through play, pause and scrubbing. When narration is present, captions start off, and viewers can turn them on with C.

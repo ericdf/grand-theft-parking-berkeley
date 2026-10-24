@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Field of Schemes Dialogue</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { --bg: #0d1016; --panel: #171c26; --ink: #f4efe3; --muted: #a9b0bf; --accent: #ffcf3f; --line: #2b3242; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 "Avenir Next", "Segoe UI", system-ui, sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 20px 16px 80px; }
+    h1 { margin: 0 0 4px; font: 900 clamp(26px, 7vw, 40px) "Arial Black", Arial, sans-serif; color: var(--accent); }
+    .lede { color: var(--muted); margin: 0 0 16px; }
+    .watch { display: inline-block; margin: 0 0 22px; padding: 10px 18px; border-radius: 999px; background: var(--accent); color: #231a00; font-weight: 800; text-decoration: none; }
+    h2 { margin: 28px 0 8px; font-size: 19px; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    h2 a { color: var(--muted); font-size: 14px; font-weight: 600; }
+    ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+    li { display: grid; grid-template-columns: 44px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    li.on { background: #1c2330; }
+    button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: #222938; color: var(--ink); font-size: 15px; cursor: pointer; }
+    li.on button { background: var(--accent); color: #231a00; border-color: var(--accent); }
+    .meta { font-size: 12px; letter-spacing: 0.06em; color: var(--accent); font-weight: 800; }
+    .meta .t, .meta .v { color: var(--muted); font-weight: 600; letter-spacing: 0; }
+    .text { margin-top: 2px; }
+    .magic .text { font-style: italic; color: #ffe9a8; }
+    .cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 16px; margin: 0; font-size: 14px; }
+    .cast dt { color: var(--accent); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; }
+    .cast dd { margin: 0 0 8px; color: var(--muted); }
+    details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+    summary { cursor: pointer; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FIELD OF SCHEMES</h1>
+    <p class="lede">Every spoken line, in film order, with the free macOS voices. Tap ▶ to hear a line. The film plays without voices until they're approved.</p>
+    <a class="watch" href="./?voices">Watch the film with voices ▶</a>
+    <details><summary>Cast and voices</summary><dl id="cast" class="cast"></dl></details>
+    <div id="script"></div>
+  </main>
+  <script>window.F = {};</script>
+  <script src="js/core.js"></script>
+  <script src="js/script.js"></script>
+  <script src="audio/voices/index.js"></script>
+  <script>
+    'use strict';
+    (function () {
+      const audio = new Audio();
+      let current = null;
+      const stop = () => { audio.pause(); if (current) { current.classList.remove('on'); current.querySelector('button').textContent = '▶'; } current = null; };
+      audio.addEventListener('ended', stop);
+      const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+      const cast = document.getElementById('cast');
+      Object.entries(F.VOICE_CAST).forEach(([who, [voice, wpm]]) => {
+        cast.appendChild(el('dt', '', F.SPEAKERS[who] || who.toUpperCase()));
+        cast.appendChild(el('dd', '', voice.replace(/ \(English \((US|UK)\)\)/, ' ($1)') + ' · ' + wpm + ' wpm'));
+      });
+
+      const root = document.getElementById('script');
+      F.SCRIPT.forEach((scene) => {
+        const h = el('h2', '', (scene.index + 1) + '. ' + scene.title);
+        const link = el('a', '', 'watch ' + F.fmt(scene.start));
+        link.href = './?voices&scene=' + scene.id;
+        h.appendChild(link);
+        root.appendChild(h);
+        const ol = el('ol');
+        scene.cues.forEach((c, i) => {
+          const line = F.VOICE_LINES[scene.id + ':' + i];
+          if (c.kind === 'sfx' || !c.text) return;
+          const li = el('li', c.kind);
+          const b = el('button', '', '▶');
+          b.setAttribute('aria-label', 'Play line');
+          b.disabled = !line;
+          b.addEventListener('click', () => {
+            const was = current === li;
+            stop();
+            if (was) return;
+            audio.src = line.src;
+            audio.play().catch(() => {});
+            current = li;
+            li.classList.add('on');
+            b.textContent = '■';
+          });
+          const body = el('div');
+          const meta = el('div', 'meta', F.SPEAKERS[c.who || c.kind] || (c.who || c.kind).toUpperCase());
+          meta.appendChild(el('span', 't', '  ·  ' + F.fmt(scene.start + c.at) + (c.hold ? '  ·  pause for the laugh' : '')));
+          body.appendChild(meta);
+          body.appendChild(el('div', 'text', c.text));
+          li.appendChild(b);
+          li.appendChild(body);
+          ol.appendChild(li);
+        });
+        root.appendChild(ol);
+      });
+    })();
+  </script>
+</body>
+</html>

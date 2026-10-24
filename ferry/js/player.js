@@ -131,12 +131,14 @@
       if (state.t >= F.TOTAL) setPlaying(false);
     }
     syncNarration(false);
+    F.voices.update(state.t, state.playing, false);
     render();
     requestAnimationFrame(frame);
   }
   function seek(t) {
     state.t = F.clamp(t, 0, F.TOTAL - 0.01);
     syncNarration(true);
+    F.voices.update(state.t, state.playing, true);
     render();
   }
   function setPlaying(p) {
@@ -146,6 +148,7 @@
     playBtn.textContent = p ? '❚❚' : '▶';
     playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play');
     syncNarration(true);
+    F.voices.update(state.t, state.playing, true);
     poke();
   }
 
@@ -267,6 +270,7 @@
   if (params.has('scene')) { const s = F.SCRIPT.find((x) => x.id === params.get('scene')); if (s) state.t = s.start + 0.01; }
   if (params.has('t')) state.t = F.clamp(+params.get('t') || 0, 0, F.TOTAL - 0.01);
   if (params.has('still')) $('splash').classList.add('hidden');
+  if (params.has('voices')) F.voices.enable();
   render();
   requestAnimationFrame(frame);
 })();
