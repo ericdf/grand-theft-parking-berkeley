@@ -73,7 +73,7 @@ East of The Alameda, Hopkins to Sutter is rated Failed in the MTC pavement data 
 
 ## Autopilot
 
-Options → "Autopilot", **O** at any time while driving, or `?autopilot` in the URL. The car then drives itself with the same inputs a player has.
+Options → "Autopilot", **O** at any time while driving (the **AUTO** button on touch screens), or `?autopilot` in the URL. The car then drives itself with the same inputs a player has.
 
 - **Slalom:** it aims at the lane center a little way ahead, swerves to the far side of potholes, and eases off to let crossing cyclists clear. It finishes with every gate clean. The fail banner points stuck players at it.
 - **City missions:** it follows the yellow-arrow route with pure pursuit. It nudges around craters near its line, slows for bends and for cyclists in its path, stops inside the Gioia space, and files the appeal at the council tent. If it gets wedged, it backs out, and after repeated failures it resets to the road. From Shattuck to the tent takes about two minutes, with the Hopkins movie included.
