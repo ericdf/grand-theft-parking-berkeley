@@ -1,5 +1,5 @@
 'use strict';
-// Mission 4 — MLK Slalom of Doom.
+// Mission 4 — the final challenge: deliver the slice down MLK to Ashby BART (the MLK Slalom of Doom).
 // Modeled on the real street: raised concrete islands at intersections make the double-yellow
 // centerline (and the two travel lanes) swerve. Here the swerves alternate right/left and are
 // exaggerated so far that you cannot drive straight through — that rhythm IS the level.
@@ -36,8 +36,8 @@
   const S = {};
   G.scenes.slalom = S;
 
-  S.enter = function () {
-    G.game.setCheckpoint('slalom');
+  S.enter = function (opts = {}) {
+    G.game.setCheckpoint('slalom', { retry: true });
     this.t = 0;
     this.fx = new G.Particles();
     this.floaters = new G.Floaters();
@@ -55,6 +55,9 @@
       return { s: g.s + HOLD / 2, name: c[0], right: c[1].includes('W'), left: c[1].includes('E') };
     });
     this.bhsEnd = this.cross[1] ? this.cross[1].s - 60 : 900; // Berkeley High runs Allston → Channing
+    // Ashby BART's west lot fills the east side from Ashby down past the finish
+    const ashby = this.cross.find((c) => c.name === 'ASHBY AVE');
+    this.bartS = ashby ? ashby.s + 60 : this.finishOrig + 400;
 
     const rng = G.mulberry32(2024);
     this.potholes = [];
@@ -82,7 +85,7 @@
       const colors = ['#c0392b', '#2c3e50', '#7f8c8d', '#ecf0f1', '#16a085', '#34495e', '#d35400', '#8e44ad', '#bdc3c7'];
       const redCurb = this.gates.some((g) => g.dir > 0 && s > g.s - R - 40 && s < g.s + HOLD + R + 40);
       if (rng() < 0.8 && !redCurb) this.parked.push({ s, x: 238, a: rng() < 0.5 ? 0 : Math.PI, c: G.pick(colors, rng) });
-      if (rng() < 0.7) this.parked.push({ s, x: -238, a: Math.PI, c: G.pick(colors, rng) });
+      if (rng() < 0.7 && s < this.bartS - 60) this.parked.push({ s, x: -238, a: Math.PI, c: G.pick(colors, rng) }); // red curb all along the BART lot
     }
     this.houses = [];
     for (let s = -400; s < this.finishNew + 900; s += 120) {
@@ -90,6 +93,7 @@
         if (this.cross.some((c) => Math.abs(c.s - s) < 110 && (side > 0 ? c.right : c.left))) return;
         if (s < 40) return; // Old City Hall / Civic Center Park behind the start line
         if (side < 0 && s < this.bhsEnd + 60) return; // Berkeley High
+        if (side < 0 && s > this.bartS - 40) return; // Ashby BART
         this.houses.push({ s: s + rng() * 20, side, w: 70 + rng() * 40, h: 80 + rng() * 25, color: G.pick(['#b5654a', '#8d6e63', '#6d7f8c', '#a9746e', '#7b8f6a', '#c08552'], rng), tree: rng() < 0.6 });
       });
     }
@@ -111,12 +115,13 @@
     this.twist = false;
     this.twistT = 0;
     this.state = 'countdown';
-    this.cd = 0;
+    this.cd = opts.retry ? 0 : -2.8; // the first time, the countdown waits for the stamp
     this.camY = -200;
     G.hud.reset();
     G.hud.setTicker(RADIO);
-    G.hud.banner('MISSION START', 'MLK MUNICIPAL SLALOM — NO SKI LIFT REQUIRED', { sting: 'start', dur: 2.6 });
-    G.hud.setObjective('ESCAPE DOWN MLK. PROTECT THE SLICE.', 'Thread the diverters: right, left, right, left. Clean gates build combos.');
+    if (opts.retry) G.hud.banner('FINAL CHALLENGE', 'DELIVER THE SLICE TO ASHBY BART. AGAIN.', { sting: 'start', dur: 2.2 });
+    else G.hud.stamp(['FINAL CHALLENGE', 'DELIVER THE PIZZA SLICE', 'TO ASHBY BART'], { dur: 2.6 });
+    G.hud.setObjective('DELIVER THE SLICE TO ASHBY BART.', 'Straight down MLK. Thread the diverters: right, left, right, left. Clean gates build combos.');
     G.formCommittee('Slalom Oversight Board');
     G.audio.setMusic('slalom');
   };
@@ -216,7 +221,7 @@
       if (this.cd > 3.2) G.game.retry();
     } else if (this.state === 'done') {
       this.cd += dt;
-      if (this.cd > 4.2) G.game.go('finale');
+      if (this.cd > 4.6) G.game.go('finale');
     }
 
     if (G.input.resetCar() && this.state === 'race') {
@@ -451,7 +456,8 @@
     this.car.locked = true;
     G.stats.slalomScore = this.score;
     G.stats.sliceIntegrity = Math.round(this.slice);
-    G.hud.banner('MISSION PASSED', 'MLK MUNICIPAL SLALOM COMPLETE — SCORE ' + this.score.toLocaleString() + ' · SLICE ' + Math.round(this.slice) + '%', { sting: 'passed', dur: 3.6, color: '#7CFC00' });
+    G.hud.banner('SLICE DELIVERED', 'ASHBY BART · SCORE ' + this.score.toLocaleString() + ' · SLICE ' + Math.round(this.slice) + '%', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
+    G.hud.banner('NOW PARK', 'THE ASHBY BART LOT IS A FUTURE HOUSING SITE. GOOD LUCK.', { sting: 'fail', dur: 1.8, color: '#ff8fd8' });
     G.audio.play('applause');
     for (let k = 0; k < 60; k++) this.fx.add({ type: 'confetti', x: this.car.x + (Math.random() - 0.5) * 300, y: this.car.y - 250 - Math.random() * 100, vx: (Math.random() - 0.5) * 60, vy: 60 + Math.random() * 80, g: 40, drag: 0.5, rot: Math.random() * 6, vr: 6, size: 8, life: 3, color: G.pick(['#ff6b6b', '#ffd23f', '#6bb8ff', '#7CFC00', '#ff8fd8']) });
   };
@@ -590,6 +596,7 @@
     G.hud.drawToasts(ctx, vw, vh);
     G.hud.drawTicker(ctx, vw, vh);
     G.hud.drawBanner(ctx, vw, vh);
+    G.hud.drawStamp(ctx, vw, vh);
   };
 
   S.drawLandmarks = function (ctx, s0, s1) {
@@ -613,6 +620,8 @@
       G.outlineText(ctx, 'BERKELEY HIGH SCHOOL', 0, 0, '#ffd23f', '#000', 5);
       ctx.restore();
     }
+    const bEnd = this.finishNew + 1000;
+    if (s1 > this.bartS && s0 < bEnd) this.drawBart(ctx, Math.max(s0, this.bartS), Math.min(s1, bEnd));
     if (s0 < -60) {
       // behind the start: Civic Center Park (east) and the rubble of Old City Hall (west)
       ctx.fillStyle = '#79b357';
@@ -645,6 +654,91 @@
       G.outlineText(ctx, 'COUNCIL CHAMBERS (TEMPORARY)', CURB_L - 260, 470, '#ffd23f', '#000', 4);
       G.outlineText(ctx, 'OLD CITY HALL (RUBBLE)', CURB_R + 300, 300, '#fff', '#000', 4);
       for (const c of this.clowns) G.drawClown(ctx, c.x + Math.sin(t * 0.8 + c.t) * 40, -c.s, t + c.t, c.color);
+    }
+  };
+
+  // Ashby BART's west lot, on the east side of MLK: every stall striped, none of them available
+  S.drawBart = function (ctx, s0, s1) {
+    const x0 = CURB_L - 720, x1 = CURB_L - 40, top = -s1 - 20, bot = -s0 + 20;
+    ctx.fillStyle = '#5c5c62';
+    ctx.fillRect(x0, top, x1 - x0, bot - top);
+    // two double rows of stalls, nose to nose
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 2;
+    const rows = [[x1 - 150, x1 - 60], [x1 - 240, x1 - 150], [x1 - 460, x1 - 370], [x1 - 550, x1 - 460]];
+    const first = Math.ceil(s0 / 46) * 46;
+    for (const [a, b] of rows) {
+      ctx.beginPath();
+      for (let s = first; s <= s1; s += 46) { ctx.moveTo(a, -s); ctx.lineTo(b, -s); }
+      ctx.stroke();
+    }
+    // a cone in every stall (seeded by stall, so they don't swim as you scroll)
+    for (const [a, b] of rows) {
+      for (let s = first; s < s1; s += 46) {
+        const r = G.mulberry32(Math.round(s) * 7 + Math.round(a))();
+        const cx = (a + b) / 2 + (r - 0.5) * 30, cy = -s - 23;
+        ctx.fillStyle = '#f26b1d';
+        ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // stencils down the drive aisles
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = G.font(30);
+    for (let s = Math.ceil(s0 / 520) * 520; s < s1; s += 520) {
+      [x1 - 305, x1 - 635].forEach((x, i) => {
+        ctx.save();
+        ctx.translate(x, -s);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(i ? 'FUTURE HOUSING' : 'NO PARKING', 0, 0);
+        ctx.restore();
+      });
+    }
+    ctx.restore();
+    // chain-link fence along the sidewalk, with a banner every so often
+    ctx.strokeStyle = '#9aa0a6';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x1 - 6, top); ctx.lineTo(x1 - 6, bot); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#6b7075';
+    for (let s = Math.ceil(s0 / 40) * 40; s < s1; s += 40) ctx.fillRect(x1 - 9, -s - 3, 6, 6);
+    for (let s = Math.ceil((s0 - 200) / 700) * 700 + 200; s < s1; s += 700) {
+      ctx.save();
+      ctx.translate(x1 - 6, -s);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = '#1d3557';
+      ctx.fillRect(-150, -13, 300, 26);
+      ctx.fillStyle = '#fff';
+      ctx.font = G.font(12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LOT CLOSED · FUTURE HOUSING SITE', 0, 1);
+      ctx.restore();
+    }
+    // the station sign at the Ashby corner
+    const ss = this.bartS + 40;
+    if (ss > s0 - 60 && ss < s1 + 60) {
+      ctx.save();
+      ctx.translate(x1 - 70, -ss);
+      ctx.fillStyle = '#0d4ea6';
+      G.rr(ctx, -62, -26, 124, 52, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = G.font(20);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ASHBY', 0, -8);
+      ctx.font = G.font(12);
+      ctx.fillText('BART STATION', 0, 13);
+      ctx.restore();
     }
   };
 
@@ -792,7 +886,7 @@
         ctx.fillRect(x, y - 14 + r * 14, 14, 14);
       }
     }
-    this.drawOverhead(ctx, s + 60, old ? 'FINISH (FORMERLY) — NOW A DEMONSTRATION CORRIDOR' : 'FINISH', old ? '#7b2cbf' : '#15803d');
+    this.drawOverhead(ctx, s + 60, old ? 'FINISH (FORMERLY) — NOW A DEMONSTRATION CORRIDOR' : 'ASHBY BART — SLICE DROP-OFF', old ? '#7b2cbf' : '#15803d');
   };
 
   S.drawScore = function (ctx, vw) {

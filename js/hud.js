@@ -22,12 +22,18 @@
     this.toasts = [];
     this.objective = '';
     this.objectiveSub = '';
+    this.stampCur = null;
   };
 
   // Big GTA-style announcement. Queued so they never overlap.
   H.banner = function (title, sub, o = {}) {
     this.banners.push({ title, sub, dur: o.dur || 2.6, color: o.color || '#ffd23f', sting: o.sting, t: 0 });
   };
+  // A rubber stamp slammed across the whole screen: marks a chapter change, not anything in the story.
+  H.stamp = function (lines, o = {}) {
+    this.stampCur = { lines, t: 0, dur: o.dur || 3, delay: o.delay || 0, color: o.color || '#d62828', landed: false };
+  };
+
   H.bannerBusy = function () { return !!this.cur || this.banners.length > 0; };
 
   H.toast = function (text, o = {}) {
@@ -63,6 +69,16 @@
     if (this.cur) {
       this.cur.t += dt;
       if (this.cur.t >= this.cur.dur) this.cur = null;
+    }
+    const st = this.stampCur;
+    if (st) {
+      st.t += dt;
+      if (!st.landed && st.t >= st.delay + 0.18) {
+        st.landed = true;
+        G.audio.play('stamp');
+        this.addShake(14);
+      }
+      if (st.t >= st.delay + st.dur) this.stampCur = null;
     }
     for (const t of this.toasts) t.t += dt;
     this.toasts = this.toasts.filter((t) => t.t < t.dur);
@@ -103,6 +119,74 @@
       const lines = G.wrapText(ctx, b.sub, w * 0.85);
       lines.forEach((l, i) => G.outlineText(ctx, l, 0, big * 0.55 + i * (sfz + 6), '#fff', '#000', 4));
     }
+    ctx.restore();
+  };
+
+  // the stamp is inked once on its own canvas, so the worn-rubber flecks cut only the ink
+  function stampImage(st, bw, bh) {
+    const k = Math.min(2, window.devicePixelRatio || 1); // ink at device resolution so it stays crisp
+    const key = st.lines.join('|') + bw + 'x' + bh + '@' + k;
+    if (st.img && st.key === key) return st.img;
+    const c = document.createElement('canvas');
+    const pad = bh * 0.05;
+    c.width = Math.ceil((bw + pad * 2) * k);
+    c.height = Math.ceil((bh + pad * 2) * k);
+    c.k = k;
+    const g = c.getContext('2d');
+    g.translate(c.width / 2, c.height / 2);
+    g.scale(k, k);
+    // ink frame: thick outer rule, thin inner rule
+    g.strokeStyle = st.color;
+    g.lineWidth = bh * 0.06;
+    G.rr(g, -bw / 2, -bh / 2, bw, bh, bh * 0.08);
+    g.stroke();
+    g.lineWidth = bh * 0.018;
+    G.rr(g, -bw / 2 + bh * 0.08, -bh / 2 + bh * 0.08, bw - bh * 0.16, bh - bh * 0.16, bh * 0.04);
+    g.stroke();
+    g.fillStyle = st.color;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const sizes = [0.28, 0.17, 0.17];
+    const ys = [-0.19, 0.09, 0.29];
+    st.lines.forEach((l, i) => {
+      const fz = bh * sizes[i];
+      g.font = G.condensed(fz);
+      const tw = g.measureText(l).width;
+      if (tw > bw * 0.84) g.font = G.condensed((fz * bw * 0.84) / tw);
+      g.fillText(l, 0, bh * ys[i]);
+    });
+    g.globalCompositeOperation = 'destination-out';
+    const rng = G.mulberry32(11);
+    for (let k = 0; k < 160; k++) {
+      g.globalAlpha = 0.35 + rng() * 0.5;
+      g.beginPath();
+      g.arc((rng() - 0.5) * bw, (rng() - 0.5) * bh, 1 + rng() * bh * 0.012, 0, Math.PI * 2);
+      g.fill();
+    }
+    st.img = c;
+    st.key = key;
+    return c;
+  }
+
+  H.drawStamp = function (ctx, w, h) {
+    const st = this.stampCur;
+    if (!st || st.t < st.delay) return;
+    const t = st.t - st.delay;
+    const rm = G.settings.reducedMotion;
+    const fall = G.clamp(t / 0.18, 0, 1);
+    const a = Math.min(rm ? 1 : fall * 1.4, G.clamp((st.dur - t) / 0.35, 0, 1));
+    const scale = rm ? 1 : 1 + (1 - fall * fall) * 1.6;
+    const bw = Math.round(Math.min(w * 0.8, h * 1.3)), bh = Math.round(bw * 0.46);
+    const img = stampImage(st, bw, bh);
+    ctx.save();
+    ctx.globalAlpha = a * 0.5;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = a;
+    ctx.translate(w / 2, h * 0.47);
+    ctx.scale(scale, scale);
+    ctx.rotate(-0.11);
+    ctx.drawImage(img, -img.width / img.k / 2, -img.height / img.k / 2, img.width / img.k, img.height / img.k);
     ctx.restore();
   };
 

@@ -1,12 +1,12 @@
 'use strict';
-// Finale — Mission Accomplished. A ceremony, confetti, and one final pothole.
+// Finale — Mission Accomplished. A ceremony in the Ashby BART lot (no parking), confetti, and one final pothole.
 (function () {
   const F = {};
   G.scenes.finale = F;
 
   const LINES = [
     [0, 'On behalf of the city, congratulations on a resounding success.'],
-    [2, 'Your trip generated actionable learnings.'],
+    [2, 'Welcome to the Ashby BART parking lot. Please do not park.'],
     [1, 'We have formed a committee to celebrate them.'],
     [3, 'I abstain from applauding, but in a supportive way.'],
   ];
@@ -91,15 +91,56 @@
     const sh = G.hud.shake;
     ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (ox + (Math.random() - 0.5) * sh), dpr * (oy + (Math.random() - 0.5) * sh));
     const t = this.t;
-    // plaza
-    ctx.fillStyle = '#d9d2c3';
+    // the Ashby BART lot: every stall striped, coned and closed
+    ctx.fillStyle = '#5c5c62';
     ctx.fillRect(0, 0, 1280, 720);
-    ctx.strokeStyle = 'rgba(0,0,0,0.07)';
-    ctx.lineWidth = 2;
-    for (let x = 0; x < 1280; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 720); ctx.stroke(); }
-    for (let y = 0; y < 720; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1280, y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 3;
+    for (const [x0, x1] of [[0, 230], [1050, 1280]]) {
+      for (let y = 110; y <= 720; y += 62) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); }
+      for (let y = 110; y < 700; y += 62) {
+        for (const cx of [x0 + 70, x1 - 70]) {
+          ctx.fillStyle = '#f26b1d';
+          ctx.beginPath(); ctx.arc(cx, y + 31, 10, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(cx, y + 31, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = G.font(26);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    [[115, 'NO PARKING'], [1165, 'FUTURE HOUSING']].forEach(([x, txt]) => {
+      ctx.save();
+      ctx.translate(x, 420);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(txt, 0, 0);
+      ctx.restore();
+    });
     ctx.fillStyle = '#a4161a';
     ctx.fillRect(560, 300, 160, 420);
+    // station sign and the fence notice
+    ctx.save();
+    ctx.translate(1165, 120);
+    ctx.fillStyle = '#0d4ea6';
+    G.rr(ctx, -95, -34, 190, 68, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = G.font(30);
+    ctx.fillText('ASHBY', 0, -10);
+    ctx.font = G.font(16);
+    ctx.fillText('BART STATION', 0, 18);
+    ctx.restore();
+    ctx.fillStyle = '#1d3557';
+    ctx.fillRect(10, 112, 210, 52);
+    ctx.fillStyle = '#fff';
+    ctx.font = G.font(14);
+    ctx.fillText('LOT CLOSED', 115, 128);
+    ctx.fillText('FUTURE HOUSING SITE', 115, 148);
     // banner
     ctx.fillStyle = '#1d3557';
     ctx.fillRect(170, 26, 940, 60);
@@ -110,7 +151,7 @@
     ctx.font = G.font(24);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('CIVIC ACHIEVEMENT CEREMONY — THANK YOU FOR YOUR PATIENCE', 640, 57);
+    ctx.fillText('CIVIC ACHIEVEMENT CEREMONY — ASHBY BART LOT (NO PARKING)', 640, 57);
     // council on stage
     ctx.fillStyle = '#6d4c41';
     ctx.fillRect(250, 140, 780, 30);

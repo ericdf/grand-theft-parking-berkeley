@@ -31,11 +31,11 @@ You can deploy it as-is to GitHub Pages, Netlify, or any static host. It makes n
 | `js/fp3d.js` | 3D chase-view renderer (three.js): the same street grid, scenery and game state, from just behind the car |
 | `vendor/three.module.min.js` | three.js r170 (MIT, see `vendor/three.LICENSE`) |
 | `js/council.js` | Mission 3: Council of Infinite Process, a comic-panel dialogue minigame |
-| `js/slalom.js` | Mission 4: MLK Slalom of Doom |
-| `js/finale.js` | Ceremony, confetti, final pothole, end screen |
+| `js/slalom.js` | Mission 4, the final challenge: deliver the slice down MLK to Ashby BART |
+| `js/finale.js` | Ceremony in the Ashby BART lot, confetti, final pothole, end screen |
 | `js/main.js` | Scene state machine, checkpoints, fades, pause, main loop |
 
-Flow: Title → City (Drive 1 → Hopkins → council tent) → Council → Slalom → Finale. A checkpoint is saved at the start of each mission. "Retry from checkpoint" (pause menu), losing the slice, and running out the council clock all restore the stats from that checkpoint.
+Flow: Title → City (Drive 1 → Hopkins → council tent) → Council → Slalom → Finale. After the council hands over the provisional slice, a full-screen stamp (`G.hud.stamp`) announces the final challenge: deliver it to Ashby BART. The run down MLK ends beside the Ashby BART lot, which is coned off as a future housing site, and the ceremony happens in that lot. There's no parking there either. A checkpoint is saved at the start of each mission. "Retry from checkpoint" (pause menu), losing the slice, and running out the council clock all restore the stats from that checkpoint.
 
 ## Off-road
 
