@@ -11,23 +11,23 @@ import vm from 'node:vm';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const OUT = path.join(ROOT, 'audio', 'voices');
 
-// voice, words per minute
+// voice, words per minute. The Enhanced/Premium voices are free downloads (System Settings → Accessibility → Read & Speak → System voice ⓘ).
 export const CAST = {
-  narrator: ['Daniel', 175],
-  magic: ['Samantha', 150],
-  dry: ['Fred', 165],
-  official: ['Eddy (English (US))', 185],
-  state: ['Reed (English (US))', 175],
-  engineer: ['Grandpa (English (US))', 190],
-  consultant: ['Rocko (English (US))', 185],
-  comm1: ['Shelley (English (US))', 180],
-  comm2: ['Sandy (English (US))', 180],
-  clerk: ['Kathy', 185],
-  member: ['Flo (English (US))', 180],
-  citizen: ['Sandy (English (UK))', 180],
-  captain: ['Rocko (English (UK))', 175],
+  narrator: ['Ava (Premium)', 175],
+  magic: ['Zoe (Premium)', 145],
+  dry: ['Evan (Enhanced)', 160],
+  official: ['Tom (Enhanced)', 185],
+  state: ['Susan (Enhanced)', 175],
+  engineer: ['Lee (Premium)', 190],
+  consultant: ['Nathan (Enhanced)', 195],
+  comm1: ['Allison (Enhanced)', 180],
+  comm2: ['Karen (Premium)', 180],
+  clerk: ['Joelle (Enhanced)', 185],
+  member: ['Nicky (Enhanced)', 180],
+  citizen: ['Noelle (Enhanced)', 180],
+  captain: ['Daniel', 170],
   meter: ['Zarvox', 170],
-  windsurfer: ['Eddy (English (UK))', 185],
+  windsurfer: ['Samantha (Enhanced)', 185],
 };
 const MAX_SPEEDUP = 1.3;
 const GAP = 0.15; // breathing room before the next line

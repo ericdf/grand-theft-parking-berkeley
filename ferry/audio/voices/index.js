@@ -3,231 +3,231 @@
 F.VOICE_LINES = {
  "promise:1": {
   "src": "audio/voices/promise-01.m4a",
-  "dur": 1.9
+  "dur": 1.65
  },
  "promise:3": {
   "src": "audio/voices/promise-02.m4a",
-  "dur": 1.51
+  "dur": 1.01
  },
  "promise:4": {
   "src": "audio/voices/promise-03.m4a",
-  "dur": 2.46
+  "dur": 1.7
  },
  "promise:5": {
   "src": "audio/voices/promise-04.m4a",
-  "dur": 1.33
+  "dur": 0.71
  },
  "promise:8": {
   "src": "audio/voices/promise-05.m4a",
-  "dur": 4.77
+  "dur": 4.43
  },
  "ferry:1": {
   "src": "audio/voices/ferry-01.m4a",
-  "dur": 4.84
+  "dur": 4.97
  },
  "ferry:2": {
   "src": "audio/voices/ferry-02.m4a",
-  "dur": 4.13
+  "dur": 4.05
  },
  "ferry:4": {
   "src": "audio/voices/ferry-03.m4a",
-  "dur": 4.12
+  "dur": 4.19
  },
  "ferry:5": {
   "src": "audio/voices/ferry-04.m4a",
-  "dur": 8
+  "dur": 7.13
  },
  "ferry:6": {
   "src": "audio/voices/ferry-05.m4a",
-  "dur": 1.01
+  "dur": 0.89
  },
  "ferry:8": {
   "src": "audio/voices/ferry-06.m4a",
-  "dur": 6.46
+  "dur": 6.47
  },
  "treasury:0": {
   "src": "audio/voices/treasury-01.m4a",
-  "dur": 3.93
+  "dur": 4.28
  },
  "treasury:1": {
   "src": "audio/voices/treasury-02.m4a",
-  "dur": 3.21
+  "dur": 3.15
  },
  "treasury:3": {
   "src": "audio/voices/treasury-03.m4a",
-  "dur": 1.37
+  "dur": 1.52
  },
  "treasury:6": {
   "src": "audio/voices/treasury-04.m4a",
-  "dur": 4.3
+  "dur": 4.13
  },
  "treasury:7": {
   "src": "audio/voices/treasury-05.m4a",
-  "dur": 3.65
+  "dur": 2.83
  },
  "treasury:8": {
   "src": "audio/voices/treasury-06.m4a",
-  "dur": 2.8
+  "dur": 2.11
  },
  "treasury:10": {
   "src": "audio/voices/treasury-07.m4a",
-  "dur": 2
+  "dur": 1.47
  },
  "treasury:12": {
   "src": "audio/voices/treasury-08.m4a",
-  "dur": 3.81
+  "dur": 3.66
  },
  "treasury:13": {
   "src": "audio/voices/treasury-09.m4a",
-  "dur": 2.42
+  "dur": 2.47
  },
  "treasury:15": {
   "src": "audio/voices/treasury-10.m4a",
-  "dur": 6.58
+  "dur": 6.8
  },
  "treasury:16": {
   "src": "audio/voices/treasury-11.m4a",
-  "dur": 2.65
+  "dur": 2.72
  },
  "miracle:2": {
   "src": "audio/voices/miracle-01.m4a",
-  "dur": 1.9
+  "dur": 1.65
  },
  "miracle:3": {
   "src": "audio/voices/miracle-02.m4a",
-  "dur": 0.72
+  "dur": 0.39
  },
  "miracle:4": {
   "src": "audio/voices/miracle-03.m4a",
-  "dur": 0.74
+  "dur": 0.61
  },
  "miracle:6": {
   "src": "audio/voices/miracle-04.m4a",
-  "dur": 2.54
+  "dur": 1.99
  },
  "miracle:7": {
   "src": "audio/voices/miracle-05.m4a",
-  "dur": 1.86
+  "dur": 1.37
  },
  "miracle:9": {
   "src": "audio/voices/miracle-06.m4a",
-  "dur": 7.08
+  "dur": 7.18
  },
  "price:0": {
   "src": "audio/voices/price-01.m4a",
-  "dur": 3.37
+  "dur": 3.08
  },
  "price:2": {
   "src": "audio/voices/price-02.m4a",
-  "dur": 1.67
+  "dur": 1.81
  },
  "price:5": {
   "src": "audio/voices/price-03.m4a",
-  "dur": 5.47
+  "dur": 5.37
  },
  "price:6": {
   "src": "audio/voices/price-04.m4a",
-  "dur": 2.57
+  "dur": 2.01
  },
  "wise:0": {
   "src": "audio/voices/wise-01.m4a",
-  "dur": 3.13
+  "dur": 3.08
  },
  "wise:1": {
   "src": "audio/voices/wise-02.m4a",
-  "dur": 4.81
+  "dur": 4.52
  },
  "wise:2": {
   "src": "audio/voices/wise-03.m4a",
-  "dur": 1.73
+  "dur": 1.34
  },
  "wise:3": {
   "src": "audio/voices/wise-04.m4a",
-  "dur": 2.85
+  "dur": 2.29
  },
  "wise:4": {
   "src": "audio/voices/wise-05.m4a",
-  "dur": 3.5
+  "dur": 2.55
  },
  "wise:6": {
   "src": "audio/voices/wise-06.m4a",
-  "dur": 5.18
+  "dur": 4.39
  },
  "wise:8": {
   "src": "audio/voices/wise-07.m4a",
-  "dur": 3.36
+  "dur": 3.03
  },
  "wise:10": {
   "src": "audio/voices/wise-08.m4a",
-  "dur": 2.45
+  "dur": 2.43
  },
  "wise:12": {
   "src": "audio/voices/wise-09.m4a",
-  "dur": 2.54
+  "dur": 2.77
  },
  "consent:1": {
   "src": "audio/voices/consent-01.m4a",
-  "dur": 4.11
+  "dur": 3.7
  },
  "consent:2": {
   "src": "audio/voices/consent-02.m4a",
-  "dur": 2.08
+  "dur": 1.43
  },
  "consent:3": {
   "src": "audio/voices/consent-03.m4a",
-  "dur": 1.42
+  "dur": 1.03
  },
  "consent:4": {
   "src": "audio/voices/consent-04.m4a",
-  "dur": 1.21
+  "dur": 0.58
  },
  "consent:6": {
   "src": "audio/voices/consent-05.m4a",
-  "dur": 5.12
+  "dur": 5.07
  },
  "consent:7": {
   "src": "audio/voices/consent-06.m4a",
-  "dur": 2.83
+  "dur": 2.31
  },
  "consent:11": {
   "src": "audio/voices/consent-07.m4a",
-  "dur": 2.35
+  "dur": 1.8
  },
  "subsidy:1": {
   "src": "audio/voices/subsidy-01.m4a",
-  "dur": 2.04
+  "dur": 2.13
  },
  "subsidy:3": {
   "src": "audio/voices/subsidy-02.m4a",
-  "dur": 2.15
+  "dur": 2.19
  },
  "subsidy:4": {
   "src": "audio/voices/subsidy-03.m4a",
-  "dur": 1.94
+  "dur": 2.02
  },
  "subsidy:6": {
   "src": "audio/voices/subsidy-04.m4a",
-  "dur": 1.77
+  "dur": 1.29
  },
  "subsidy:7": {
   "src": "audio/voices/subsidy-05.m4a",
-  "dur": 2.62
+  "dur": 2.16
  },
  "subsidy:8": {
   "src": "audio/voices/subsidy-06.m4a",
-  "dur": 0.96
+  "dur": 0.71
  },
  "subsidy:9": {
   "src": "audio/voices/subsidy-07.m4a",
-  "dur": 2.89
+  "dur": 2.93
  },
  "subsidy:10": {
   "src": "audio/voices/subsidy-08.m4a",
-  "dur": 1.21
+  "dur": 1.19
  },
  "fitness:0": {
   "src": "audio/voices/fitness-01.m4a",
-  "dur": 5.08
+  "dur": 5.35
  },
  "fitness:2": {
   "src": "audio/voices/fitness-02.m4a",
@@ -235,35 +235,35 @@ F.VOICE_LINES = {
  },
  "fitness:3": {
   "src": "audio/voices/fitness-03.m4a",
-  "dur": 2.06
+  "dur": 2.31
  },
  "fitness:4": {
   "src": "audio/voices/fitness-04.m4a",
-  "dur": 2.81
+  "dur": 3.06
  },
  "fitness:5": {
   "src": "audio/voices/fitness-05.m4a",
-  "dur": 1.53
+  "dur": 1.71
  },
  "fitness:8": {
   "src": "audio/voices/fitness-06.m4a",
-  "dur": 2.05
+  "dur": 1.62
  },
  "fitness:9": {
   "src": "audio/voices/fitness-07.m4a",
-  "dur": 1.86
+  "dur": 1.82
  },
  "resilience:0": {
   "src": "audio/voices/resilience-01.m4a",
-  "dur": 3.44
+  "dur": 3.52
  },
  "resilience:4": {
   "src": "audio/voices/resilience-02.m4a",
-  "dur": 2.02
+  "dur": 1.57
  },
  "resilience:5": {
   "src": "audio/voices/resilience-03.m4a",
-  "dur": 1.93
+  "dur": 1.59
  },
  "resilience:7": {
   "src": "audio/voices/resilience-04.m4a",
@@ -271,39 +271,39 @@ F.VOICE_LINES = {
  },
  "ever-after:1": {
   "src": "audio/voices/ever-after-01.m4a",
-  "dur": 4.33
+  "dur": 4.44
  },
  "ever-after:3": {
   "src": "audio/voices/ever-after-02.m4a",
-  "dur": 3.14
+  "dur": 3.13
  },
  "ever-after:4": {
   "src": "audio/voices/ever-after-03.m4a",
-  "dur": 1.94
+  "dur": 1.96
  },
  "ever-after:6": {
   "src": "audio/voices/ever-after-04.m4a",
-  "dur": 2.87
+  "dur": 2.85
  },
  "ever-after:8": {
   "src": "audio/voices/ever-after-05.m4a",
-  "dur": 5.32
+  "dur": 5.36
  },
  "ever-after:9": {
   "src": "audio/voices/ever-after-06.m4a",
-  "dur": 1.9
+  "dur": 1.65
  },
  "ever-after:10": {
   "src": "audio/voices/ever-after-07.m4a",
-  "dur": 1.45
+  "dur": 1.02
  },
  "ever-after:11": {
   "src": "audio/voices/ever-after-08.m4a",
-  "dur": 2.05
+  "dur": 1.57
  },
  "ever-after:13": {
   "src": "audio/voices/ever-after-09.m4a",
-  "dur": 1.46
+  "dur": 1.03
  }
 };
-F.VOICE_CAST = {"narrator":["Daniel",175],"magic":["Samantha",150],"dry":["Fred",165],"official":["Eddy (English (US))",185],"state":["Reed (English (US))",175],"engineer":["Grandpa (English (US))",190],"consultant":["Rocko (English (US))",185],"comm1":["Shelley (English (US))",180],"comm2":["Sandy (English (US))",180],"clerk":["Kathy",185],"member":["Flo (English (US))",180],"citizen":["Sandy (English (UK))",180],"captain":["Rocko (English (UK))",175],"meter":["Zarvox",170],"windsurfer":["Eddy (English (UK))",185]};
+F.VOICE_CAST = {"narrator":["Ava (Premium)",175],"magic":["Zoe (Premium)",145],"dry":["Evan (Enhanced)",160],"official":["Tom (Enhanced)",185],"state":["Susan (Enhanced)",175],"engineer":["Lee (Premium)",190],"consultant":["Nathan (Enhanced)",195],"comm1":["Allison (Enhanced)",180],"comm2":["Karen (Premium)",180],"clerk":["Joelle (Enhanced)",185],"member":["Nicky (Enhanced)",180],"citizen":["Noelle (Enhanced)",180],"captain":["Daniel",170],"meter":["Zarvox",170],"windsurfer":["Samantha (Enhanced)",185]};
