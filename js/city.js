@@ -719,6 +719,7 @@ G.scenes = G.scenes || {};
   // along the route, a nudge around craters, braking for corners, cyclists and the destination.
   const IDLE = { up: false, back: false, left: false, right: false, hand: false };
   const SIGHTSEEING = 100; // 3D-view cruise; 230 is the top-down cruise
+  const WATCH_SPOT = 140; // how close the autopilot gets to a space before it is reimagined
   const SIGHTSEEING_HOPKINS = 50; // slower still past Gioia and the storefronts, and through the space hunt
   City.pilot = function (dt) {
     const car = this.car, P = this.pilotState || (this.pilotState = { stuck: 0, rev: 0, file: false });
@@ -732,6 +733,10 @@ G.scenes = G.scenes || {};
 
     const spot = this.phase === 'hopkins' && this.spots[this.spotIdx];
     const parking = spot && spot.type === 'phantom' && spot.state === 'avail';
+    // a space that is about to be reimagined: pull up short of it, then stay and watch it go
+    if (this.phase === 'hopkins' && this.spotIdx !== P.spotIdx) { if (P.spotIdx !== undefined) P.linger = 2.2; P.spotIdx = this.spotIdx; }
+    if (P.linger > 0) { P.linger -= dt; return Object.assign({}, IDLE, { back: car.fwd > 5 }); }
+    const doomed = spot && spot.type !== 'phantom' && spot.state === 'avail';
     const cityHall = this.phase === 'toCityHall';
     // at the canyon overlook: hold still and take it in
     if (this.scenic === 1) return Object.assign({}, IDLE, { back: car.fwd > 5 });
@@ -754,6 +759,7 @@ G.scenes = G.scenes || {};
     let speed = G.lerp(cruise, Math.min(70, cruise), G.clamp(bend / 1.3, 0, 1));
     const overlook = this.scenic === 0;
     if (parking || cityHall) speed = Math.min(speed, Math.sqrt(2 * 380 * Math.max(0, left - (parking || overlook ? 4 : 40))));
+    if (doomed) speed = Math.min(speed, Math.max(12, Math.sqrt(2 * 380 * Math.max(0, left - WATCH_SPOT + 10))));
     if ((parking || overlook) && left < 40) speed = Math.min(speed, 25);
 
     // aim point, nudged clear of craters near the line
@@ -799,7 +805,7 @@ G.scenes = G.scenes || {};
     if (Math.abs(err) > 1.4 && car.fwd > 60) speed = 0;
     return {
       up: car.fwd < speed - 8,
-      back: car.fwd > speed + 25,
+      back: car.fwd > speed + (doomed ? 4 : 25),
       left: err < -0.05,
       right: err > 0.05,
       hand: false,
@@ -1170,7 +1176,8 @@ G.scenes = G.scenes || {};
     if (!s || s.state !== 'avail') return;
     const d = G.dist(car.x, car.y, s.x, s.y);
     if (s.type !== 'phantom') {
-      if (d < 170) {
+      // the autopilot pulls up short of the space, so a watcher sees it vanish right in front of the car
+      if (G.settings.autopilot ? d < WATCH_SPOT && car.speed < 20 : d < 170) {
         s.state = 'done';
         s.pop = 0;
         G.audio.play('poof');
