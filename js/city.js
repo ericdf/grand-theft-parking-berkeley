@@ -719,6 +719,7 @@ G.scenes = G.scenes || {};
   // along the route, a nudge around craters, braking for corners, cyclists and the destination.
   const IDLE = { up: false, back: false, left: false, right: false, hand: false };
   const SIGHTSEEING = 100; // 3D-view cruise; 230 is the top-down cruise
+  const SIGHTSEEING_HOPKINS = 50; // slower still past Gioia and the storefronts, and through the space hunt
   City.pilot = function (dt) {
     const car = this.car, P = this.pilotState || (this.pilotState = { stuck: 0, rev: 0, file: false });
     P.file = false;
@@ -747,7 +748,9 @@ G.scenes = G.scenes || {};
     const dirAt = (d) => { const a = ahead(d), b = ahead(d + 30); return Math.atan2(b[0] - a[0], -(b[1] - a[1])); };
     const bend = Math.max(Math.abs(G.wrapAngle(dirAt(60) - car.a)), Math.abs(G.wrapAngle(dirAt(150) - car.a)) * 0.8);
     // in the 3D chase view, cruise slowly enough to read street names and storefront signs
-    const cruise = G.fpView && G.fpView.active() ? SIGHTSEEING : 230;
+    const near = M.nearest(car.x, car.y);
+    const onHopkins = this.phase === 'hopkins' || (near && near.road.name === 'HOPKINS ST');
+    const cruise = G.fpView && G.fpView.active() ? (onHopkins ? SIGHTSEEING_HOPKINS : SIGHTSEEING) : 230;
     let speed = G.lerp(cruise, Math.min(70, cruise), G.clamp(bend / 1.3, 0, 1));
     const overlook = this.scenic === 0;
     if (parking || cityHall) speed = Math.min(speed, Math.sqrt(2 * 380 * Math.max(0, left - (parking || overlook ? 4 : 40))));
