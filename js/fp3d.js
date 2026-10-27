@@ -962,9 +962,10 @@ export function create() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const f of C.floaters.list) {
-      const q = project(f.x, 26 + f.t * 14, f.y, vw, vh);
+      const q = project(f.x, f.bubble ? 16 : 26 + f.t * 14, f.y, vw, vh);
       if (!q) continue;
       ctx.globalAlpha = G.clamp((f.dur - f.t) / 0.4, 0, 1);
+      if (f.bubble) { G.drawSpeech(ctx, q.sx, q.sy, f.text, { size: f.size, color: f.color, vw }); continue; }
       ctx.font = G.font(Math.round(f.size * G.clamp(220 / q.d, 0.7, 1.5)));
       G.outlineText(ctx, f.text, q.sx, q.sy, f.color, '#000', 4);
     }

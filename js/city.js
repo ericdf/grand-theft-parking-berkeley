@@ -650,10 +650,28 @@ G.scenes = G.scenes || {};
   City.startCityHall = function (fromCheckpoint) {
     this.phase = 'toCityHall';
     this.car.locked = false;
+    this.scenic = SCENIC ? 0 : 2;
+    this.swore = false;
+    if (SCENIC) G.hud.toast('GPS: SCENIC ROUTE SELECTED. ROOSEVELT CANYON IS LOVELY THIS TIME OF YEAR.', { color: '#f3dfa2', dur: 6 });
     if (!fromCheckpoint) G.game.setCheckpoint('city', { phase: 'toCityHall' });
     G.hud.setObjective('FILE YOUR APPEAL AT THE COUNCIL TENT', 'Civic Center Park, MLK between Allston & Center — across from the rubble of Old City Hall. Stop at the marker and press E.');
     if (fromCheckpoint) G.hud.banner('CHECKPOINT', 'APPEAL FORM IN HAND. THE TENT AWAITS.', { dur: 2.2 });
   };
+
+  // The scenic route to the tent: the GPS sends you east along Bancroft to the mouth of Roosevelt
+  // Canyon, where the driver stops, reads the sign, swears, and carries on up Bancroft.
+  // this.scenic: 0 = heading for the overlook, 1 = taking it in, 2 = on to the tent.
+  const SCENIC = (() => {
+    if (!CANYON) return null;
+    const r = CANYON.r;
+    const node = M.nodes[r.a].roads.some((q) => q.name === 'BANCROFT WAY') ? r.a : r.b;
+    const nx = M.nodes[node].x;
+    const other = (q) => M.nodes[q.a === node ? q.b : q.a];
+    const west = M.nodes[node].roads.find((q) => q.name === 'BANCROFT WAY' && other(q).x < nx);
+    if (!west) return null;
+    const p = M.pointAt(west, west.a === node ? 110 : west.len - 110);
+    return { x: p.x, y: p.y, hold: 3.6 };
+  })();
 
   City.target = function () {
     if (this.phase === 'drive1') return { x: R.hopkinsMonterey[0], y: R.hopkinsMonterey[1] };
@@ -661,7 +679,29 @@ G.scenes = G.scenes || {};
       const s = this.spots[this.spotIdx];
       return s ? { x: s.x, y: s.y } : null;
     }
+    if (SCENIC && this.scenic < 2) return SCENIC;
     return { x: CH.x, y: CH.y };
+  };
+
+  City.updateScenic = function (dt) {
+    const car = this.car;
+    if (this.scenic === 0) {
+      // the autopilot pulls up at the overlook; a player only has to drive past it
+      if (G.dist(car.x, car.y, SCENIC.x, SCENIC.y) > (G.settings.autopilot ? 16 : 40)) return;
+      this.scenic = 1;
+      this.scenicT = 0;
+    }
+    this.scenicT += dt;
+    if (this.scenicT >= 1.2 && !this.swore) {
+      this.swore = true;
+      // out of the driver's window (the left side)
+      const lx = car.x - Math.cos(car.a) * 14, ly = car.y - Math.sin(car.a) * 14;
+      this.floaters.list.push({ x: lx, y: ly, text: '$%@!', color: '#c1121f', t: 0, dur: 2.4, size: 22, bubble: true });
+    }
+    if (this.scenicT >= SCENIC.hold) {
+      this.scenic = 2;
+      this.routeT = 0;
+    }
   };
 
   City.onLand = function (car) {
@@ -678,6 +718,7 @@ G.scenes = G.scenes || {};
   // Drives the same route the yellow arrow shows, with the same inputs a player has: pure pursuit
   // along the route, a nudge around craters, braking for corners, cyclists and the destination.
   const IDLE = { up: false, back: false, left: false, right: false, hand: false };
+  const SIGHTSEEING = 100; // 3D-view cruise; 230 is the top-down cruise
   City.pilot = function (dt) {
     const car = this.car, P = this.pilotState || (this.pilotState = { stuck: 0, rev: 0, file: false });
     P.file = false;
@@ -691,8 +732,10 @@ G.scenes = G.scenes || {};
     const spot = this.phase === 'hopkins' && this.spots[this.spotIdx];
     const parking = spot && spot.type === 'phantom' && spot.state === 'avail';
     const cityHall = this.phase === 'toCityHall';
+    // at the canyon overlook: hold still and take it in
+    if (this.scenic === 1) return Object.assign({}, IDLE, { back: car.fwd > 5 });
     // arrived: hold still (and, at the tent, file the appeal)
-    if (cityHall && G.dist(car.x, car.y, CH.x, CH.y) < CH.r * 0.6) {
+    if (cityHall && this.scenic === 2 && G.dist(car.x, car.y, CH.x, CH.y) < CH.r * 0.6) {
       if (car.speed < 30) P.file = true;
       return Object.assign({}, IDLE, { back: car.fwd > 5 });
     }
@@ -703,9 +746,12 @@ G.scenes = G.scenes || {};
     const ahead = (d) => M.pathAhead(route, Math.min(left, d));
     const dirAt = (d) => { const a = ahead(d), b = ahead(d + 30); return Math.atan2(b[0] - a[0], -(b[1] - a[1])); };
     const bend = Math.max(Math.abs(G.wrapAngle(dirAt(60) - car.a)), Math.abs(G.wrapAngle(dirAt(150) - car.a)) * 0.8);
-    let speed = G.lerp(230, 70, G.clamp(bend / 1.3, 0, 1));
-    if (parking || cityHall) speed = Math.min(speed, Math.sqrt(2 * 380 * Math.max(0, left - (parking ? 4 : 40))));
-    if (parking && left < 40) speed = Math.min(speed, 25);
+    // in the 3D chase view, cruise slowly enough to read street names and storefront signs
+    const cruise = G.fpView && G.fpView.active() ? SIGHTSEEING : 230;
+    let speed = G.lerp(cruise, Math.min(70, cruise), G.clamp(bend / 1.3, 0, 1));
+    const overlook = this.scenic === 0;
+    if (parking || cityHall) speed = Math.min(speed, Math.sqrt(2 * 380 * Math.max(0, left - (parking || overlook ? 4 : 40))));
+    if ((parking || overlook) && left < 40) speed = Math.min(speed, 25);
 
     // aim point, nudged clear of craters near the line
     let [tx, ty] = ahead(look);
@@ -861,6 +907,7 @@ G.scenes = G.scenes || {};
       }
     }
 
+    if (this.phase === 'toCityHall' && this.scenic < 2) this.updateScenic(dt);
     this.routeT -= dt;
     const tg = this.target();
     if (tg && this.routeT <= 0) {

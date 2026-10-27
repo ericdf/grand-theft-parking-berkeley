@@ -351,6 +351,7 @@
       ctx.textBaseline = 'middle';
       for (const f of this.list) {
         ctx.globalAlpha = G.clamp((f.dur - f.t) / 0.4, 0, 1);
+        if (f.bubble) { G.drawSpeech(ctx, f.x, f.y - 14, f.text, { size: f.size, color: f.color, vw: Infinity }); continue; }
         ctx.font = G.font(f.size);
         G.outlineText(ctx, f.text, f.x, f.y - f.t * 30, f.color, '#000', 4);
       }
