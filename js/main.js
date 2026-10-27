@@ -100,6 +100,7 @@
   ui.show = function (id) {
     ['title', 'pause', 'options', 'end'].forEach((k) => { $(k).hidden = k !== id; });
     this.open = id;
+    if (id === 'title') syncOptions();
     const first = $(id).querySelector('[data-autofocus]') || $(id).querySelector('button, input');
     if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
   };
@@ -173,6 +174,15 @@
     $('optMinimap').checked = s.minimap;
     $('optFp').checked = s.view === 'fp';
     $('optAutopilot').checked = s.autopilot;
+    $('titleFp').checked = s.view === 'fp';
+  }
+
+  // PLAY hands you the wheel; WATCH hands it to the autopilot (city, council and slalom)
+  function begin(watch) {
+    G.audio.unlock();
+    G.settings.autopilot = watch;
+    applySettings();
+    game.newGame();
   }
 
   function applySettings() {
@@ -185,8 +195,9 @@
   }
 
   function wireUi() {
-    $('startBtn').addEventListener('click', () => { G.audio.unlock(); G.settings.view = 'top'; applySettings(); game.newGame(); });
-    $('startFpBtn').addEventListener('click', () => { G.audio.unlock(); G.settings.view = 'fp'; applySettings(); game.newGame(); });
+    $('startBtn').addEventListener('click', () => begin(false));
+    $('watchBtn').addEventListener('click', () => begin(true));
+    $('titleFp').addEventListener('input', (e) => { G.settings.view = e.target.checked ? 'fp' : 'top'; applySettings(); });
     $('optionsBtn').addEventListener('click', () => ui.openOptions('title'));
     $('resumeBtn').addEventListener('click', () => game.setPaused(false));
     $('retryBtn').addEventListener('click', () => { game.setPaused(false); game.retry(); });
@@ -295,17 +306,18 @@
   wireUi();
   G.input.setupTouch();
   G.audio.setMusic('title');
+  // ?watch: a link that lands with WATCH focused, so Enter (or a tap) starts the autopilot run
+  if (G.params.has('watch')) {
+    $('startBtn').removeAttribute('data-autofocus');
+    $('watchBtn').setAttribute('data-autofocus', '');
+  }
   const startAt = G.params.get('start');
   if (startAt) game.newGame(startAt);
   else ui.show('title');
   window.addEventListener('keydown', (e) => {
     if (ui.isOpen('title') && (e.code === 'Enter' || e.code === 'NumpadEnter') && document.activeElement && document.activeElement.id !== 'optionsBtn') {
       e.preventDefault();
-      G.audio.unlock();
-      if (document.activeElement && document.activeElement.id === 'startFpBtn') G.settings.view = 'fp';
-      else G.settings.view = 'top';
-      applySettings();
-      game.newGame();
+      begin(document.activeElement.id === 'watchBtn');
     }
   });
   requestAnimationFrame(frame);

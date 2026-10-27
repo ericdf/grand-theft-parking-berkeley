@@ -23,6 +23,8 @@
     'I brought Form 27-B. All 14 pages.',
     'I support the plan. Which plan? Any plan.',
   ];
+  // the way out: a plain request, in the same list, from the second round on
+  const PLAIN_LINE = 'Hi. I just want to park on Hopkins and buy one slice at Gioia.';
 
   const RESPONSES = [
     { m: 0, text: 'We hear your concern. We have commissioned a framework for hearing it.', stamp: 'STUDIED' },
@@ -214,7 +216,6 @@
     this.bubble = null;
     this.playerBubble = null;
     this.speaking = -1;
-    this.pc = { state: 'hidden', t: 0, roundsUntil: 1, expiries: 0 };
     this.deck = G.shuffle(RESPONSES);
     this.deckIdx = 0;
     this.card = null;
@@ -223,14 +224,13 @@
     G.hud.reset();
     G.hud.setTicker(null);
     G.hud.banner('MISSION START', 'COUNCIL OF INFINITE PROCESS', { sting: 'start', dur: 2.6 });
-    G.hud.setObjective('OBTAIN AN EMERGENCY PARKING EXEMPTION', 'Choose what to say (1/2/3). Watch for anything that looks like actual public participation.');
+    G.hud.setObjective('OBTAIN AN EMERGENCY PARKING EXEMPTION', 'Choose what to say (1/2/3) before the meeting adjourns.');
     G.hud.toast('COUNCIL NOW MEETING IN TEMPORARY CHAMBERS. CLOWNS ARE NOT COUNCIL MEMBERS (PENDING REVIEW).', { color: '#ff9ad5', dur: 5 });
     G.audio.setMusic('council');
     G.audio.play('crowd');
     this.setupDom();
     this.ui.hidden = false;
     this.showChoices(false);
-    this.pcBtn.hidden = true;
   };
 
   C.exit = function () {
@@ -241,11 +241,8 @@
     if (this.ui) return;
     this.ui = document.getElementById('council-ui');
     this.choiceBtns = [...this.ui.querySelectorAll('.choice')];
-    this.pcBtn = document.getElementById('pcBtn');
-    this.pcBar = document.getElementById('pcBar');
     this.timerBar = document.getElementById('choiceTimer');
     this.choiceBtns.forEach((b, i) => b.addEventListener('click', () => this.choose(i)));
-    this.pcBtn.addEventListener('click', () => this.publicComment());
   };
 
   C.showChoices = function (on) {
@@ -285,40 +282,29 @@
     this.toState('choose');
     this.chooseT = 9;
     this.options = G.shuffle(PLAYER_LINES).slice(0, 3);
-    this.choiceBtns.forEach((b, i) => { b.textContent = i + 1 + ' · ' + this.options[i]; });
+    if (this.round > 0) this.options[Math.floor(Math.random() * 3)] = PLAIN_LINE;
+    this.choiceBtns.forEach((b, i) => {
+      b.textContent = i + 1 + ' · ' + this.options[i];
+      b.classList.remove('picked');
+    });
     this.showChoices(true);
-    if (this.pc.state === 'hidden' && this.pc.roundsUntil <= 0) this.openPublicComment();
     this.choiceBtns[0].focus({ preventScroll: true });
   };
 
-  C.openPublicComment = function () {
-    this.pc.state = 'open';
-    this.pc.t = 10;
-    this.pcBtn.hidden = false;
-    this.pcBtn.dataset.level = String(Math.min(2, this.pc.expiries));
-    G.audio.play('blip');
+  // autopilot (WATCH): two rounds of clever lines, then the plain request
+  C.autoChoice = function () {
+    const plain = this.options.indexOf(PLAIN_LINE);
+    return this.round >= 2 && plain >= 0 ? plain : this.options.findIndex((o) => o !== PLAIN_LINE);
   };
 
   C.choose = function (i) {
     if (this.state !== 'choose') return;
     G.audio.play('select');
     this.showChoices(false);
+    this.speaking = -1;
+    this.bubble = null;
     this.playerBubble = this.options[i];
-    this.speaking = -1;
-    this.bubble = null;
-    this.toState('player');
-  };
-
-  C.publicComment = function () {
-    if (this.pc.state !== 'open' || this.state === 'pc' || this.state === 'adjourned') return;
-    this.pc.state = 'used';
-    this.pcBtn.hidden = true;
-    this.showChoices(false);
-    G.audio.play('select');
-    this.bubble = null;
-    this.speaking = -1;
-    this.playerBubble = 'Hi. I just want to park on Hopkins and buy one slice at Gioia.';
-    this.toState('pc');
+    this.toState(this.options[i] === PLAIN_LINE ? 'pc' : 'player');
   };
 
   C.update = function (dt) {
@@ -333,24 +319,17 @@
       else if (inp.was('Digit2', 'Numpad2')) this.choose(1);
       else if (inp.was('Digit3', 'Numpad3')) this.choose(2);
     }
-    if (inp.was('KeyC')) this.publicComment();
+    if (inp.was('KeyO')) {
+      G.settings.autopilot = !G.settings.autopilot;
+      G.saveSettings();
+      G.hud.toast(G.settings.autopilot ? 'AUTOPILOT ENGAGED. IT HAS SAT THROUGH WORSE MEETINGS.' : 'AUTOPILOT OFF. THE FLOOR IS YOURS.', { color: '#9be7ff', dur: 2.5 });
+      if (!G.settings.autopilot) this.choiceBtns.forEach((b) => b.classList.remove('picked'));
+    }
 
     const meetingRuns = ['choose', 'player', 'response'].includes(this.state);
     if (meetingRuns) {
       this.meeting -= dt;
       if (this.meeting <= 0) this.adjourn();
-    }
-    if (this.pc.state === 'open' && meetingRuns) {
-      this.pc.t -= dt;
-      this.pcBar.style.width = Math.max(0, (this.pc.t / 10) * 100) + '%';
-      if (this.pc.t <= 0) {
-        this.pc.state = 'hidden';
-        this.pc.expiries++;
-        this.pc.roundsUntil = 2;
-        this.pcBtn.hidden = true;
-        G.hud.banner('PUBLIC COMMENT EXPIRED', 'PLEASE RESUBMIT IN WRITING, IN TRIPLICATE, BY 1997.', { sting: 'buzzer', dur: 2.4, color: '#ff5a5a' });
-        if (this.pc.expiries === 1) G.hud.toast('PSST: "PUBLIC COMMENT" IS THAT TINY BUTTON IN THE CORNER. (OR PRESS C.)', { color: '#9be7ff', dur: 6 });
-      }
     }
 
     switch (this.state) {
@@ -361,6 +340,12 @@
       case 'choose':
         this.chooseT -= dt;
         this.timerBar.style.width = Math.max(0, (this.chooseT / 9) * 100) + '%';
+        if (G.settings.autopilot) {
+          // hover on the pick long enough to read it, then say it
+          const pick = this.autoChoice();
+          if (this.st > 2.2) this.choiceBtns[pick].classList.add('picked');
+          if (this.st > 3.2) { this.choose(pick); break; }
+        }
         if (this.chooseT <= 0) {
           this.showChoices(false);
           this.playerBubble = '…';
@@ -386,7 +371,6 @@
         }
         if (this.st > 3.2) {
           this.round++;
-          this.pc.roundsUntil--;
           this.openChoices();
         }
         break;
@@ -435,7 +419,6 @@
   C.adjourn = function () {
     if (this.state === 'adjourned') return;
     this.showChoices(false);
-    this.pcBtn.hidden = true;
     this.say(1, 'We are out of time. This item is continued to a future meeting.');
     G.audio.play('gavel');
     G.hud.banner('MEETING ADJOURNED', 'ITEM CONTINUED TO A FUTURE MEETING. RETRYING FROM CHECKPOINT…', { sting: 'fail', dur: 3.4, color: '#ff5a5a' });
@@ -456,6 +439,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     G.hud.drawObjective(ctx, vw);
     G.hud.drawStars(ctx, vw);
+    if (G.settings.autopilot && this.state === 'choose') G.hud.drawAutopilot(ctx, vw, vh - 200, this.t);
     G.hud.drawToasts(ctx, vw, vh);
     G.hud.drawBanner(ctx, vw, vh);
   };

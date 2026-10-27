@@ -43,7 +43,7 @@ The car can jump the curb and drive on sidewalks and lawns. Houses, storefronts,
 
 ## 3D chase view
 
-The city missions (Drive 1, Hopkins, the drive to the council tent) can be played in 3D from just behind the car, GTA-style: **3D VIEW** on the title screen, **V** while driving, the Options checkbox, or `?view=fp` in the URL. It is the same game, not a port: car physics, collisions, potholes, cyclists, parking spaces and routing are all the top-down code, and only the camera changes.
+The city missions (Drive 1, Hopkins, the drive to the council tent) can be played in 3D from just behind the car, GTA-style: the **3D chase view** checkbox on the title screen, **V** while driving, the Options checkbox, or `?view=fp` in the URL. It is the same game, not a port: car physics, collisions, potholes, cyclists, parking spaces and routing are all the top-down code, and only the camera changes.
 
 - The road surface is the top-down painter itself. `City.drawZones/drawRoads/drawHazards/drawSpots` draw into two ground textures: a coarse one of the whole map, painted once, and a sharp 1600 px patch ahead of the car that is repainted as you drive. Lane paint, crosswalks, potholes and Roosevelt Canyon therefore match the aerial view exactly.
 - Houses, storefronts (with license-data names on their signboards), trees, Berkeley High, the rubble of Old City Hall, the council tent, closures, signs, cones, inspectors, clowns and cyclists are 3D, placed from the same data.
@@ -71,14 +71,20 @@ Afterwards Hopkins is smooth and has no parking. Cyclists ride in the cycletrack
 
 East of The Alameda, Hopkins to Sutter is rated Failed in the MTC pavement data and is outside project limits: the Hopkins Pothole Preserve ("DAMAGING VEHICLES SINCE 2000"). It has rows of craters wall to wall, except for one gap that weaves left, center, right, so a careful driver can thread it (or take the sidewalk).
 
+## Play or watch
+
+The title screen offers **PLAY** and **WATCH**. WATCH runs the whole game on autopilot, start to finish, for anyone who would rather see it than drive it. `?watch` in the URL lands on the title with WATCH focused, so Enter or a tap starts it.
+
 ## Autopilot
 
-Options → "Autopilot", **O** at any time while driving (the **AUTO** button on touch screens), or `?autopilot` in the URL. The car then drives itself with the same inputs a player has.
+**WATCH** on the title screen, Options → "Autopilot", **O** at any time (the **AUTO** button on touch screens), or `?autopilot` in the URL. The car then drives itself with the same inputs a player has. PLAY turns it off.
 
 - **Slalom:** it aims at the lane center a little way ahead, swerves to the far side of potholes, and eases off to let crossing cyclists clear. It finishes with every gate clean. The fail banner points stuck players at it.
 - **City missions:** it follows the yellow-arrow route with pure pursuit. It nudges around craters near its line, slows for bends and for cyclists in its path, stops inside the Gioia space, and files the appeal at the council tent. If it gets wedged, it backs out, and after repeated failures it resets to the road. From Shattuck to the tent takes about two minutes, with the Hopkins movie included.
 
-The council hearing and the finale aren't driving, so they're unaffected.
+- **Council hearing:** it reads each set of choices for a few seconds, says two clever lines, then picks the plain request.
+
+The finale plays itself either way.
 
 ## Test / debug jumps
 
