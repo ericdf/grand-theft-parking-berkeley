@@ -1548,6 +1548,9 @@ G.scenes = G.scenes || {};
     ctx.rotate(s.a);
     const flip = Math.cos(s.a) < 0;
     ctx.rotate(flip ? Math.PI : 0);
+    // a shopfront too narrow for its name: run the name along the building's depth, like a blade sign
+    const narrow = s.w && s.w < 24 && !s.hero;
+    if (narrow) ctx.rotate(Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const words = s.name.split(' ');
@@ -1556,8 +1559,9 @@ G.scenes = G.scenes || {};
       if (lines.length && (lines[lines.length - 1] + ' ' + wd).length <= 11) lines[lines.length - 1] += ' ' + wd;
       else if (lines.length < 2) lines.push(wd);
     }
-    ctx.font = G.font(s.w && s.w < 40 ? s.w / 4.4 : s.hero || s.big ? 10 : 7.5, 800);
-    lines.forEach((l, i) => G.outlineText(ctx, l, 0, (i - (lines.length - 1) / 2) * 9 - (s.hero ? 6 : 0), s.hero ? '#ffd23f' : '#fff', '#000', 2.5));
+    const size = s.hero || s.big ? 10 : narrow ? 6 : 7.5;
+    ctx.font = G.font(size, 800);
+    lines.forEach((l, i) => G.outlineText(ctx, l, 0, (i - (lines.length - 1) / 2) * (size + 1.5) - (s.hero ? 6 : 0), s.hero ? '#ffd23f' : '#fff', '#000', narrow ? 2 : 2.5));
     if (s.hero) G.drawPizza(ctx, 0, 12, 8 + Math.sin(t * 4));
     ctx.restore();
   }

@@ -268,13 +268,15 @@
   // McGee: too close together to survive the overlap pass below, so they are packed here as one row,
   // with signs on three of them. Across California: Monterey Market behind its corner parking lot, which
   // is full. Catty-corner, north of Hopkins: Espresso Roma (1549 Hopkins; not in the license data).
-  const ROW = [
-    { name: 'MAGNANIS POULTRY', w: 28, label: 'MAGNANI POULTRY' },
-    { name: 'ASAKA SUSHI & BAR', w: 16, sign: false },
-    { name: 'MONTEREY FISH MARKET', w: 28 },
-    { name: 'HOPKINS BAKERY', w: 14, sign: false },
-    { name: 'GIOIA PIZZERIA', w: 30 },
+  // West of Gioia, in license-data order, with relative widths. Gioia sits two-thirds of the way along
+  // the block heading east; the row carries on past it to McGee as unsigned storefronts.
+  const ROW_WEST = [
+    { name: 'MAGNANIS POULTRY', w: 3, label: 'MAGNANI POULTRY' },
+    { name: 'ASAKA SUSHI & BAR', w: 2, sign: false },
+    { name: 'MONTEREY FISH MARKET', w: 3 },
+    { name: 'HOPKINS BAKERY', w: 2, sign: false },
   ];
+  const GIOIA_W = 26, GIOIA_AT = 2 / 3;
   const LOT_CARS = ['#c0392b', '#2c3e50', '#7f8c8d', '#ecf0f1', '#16a085', '#34495e', '#d35400', '#8e44ad', '#bdc3c7', '#f1c40f'];
   function layoutCorner(stores, rng) {
     const skip = new Set();
@@ -303,9 +305,23 @@
       stores.push(Object.assign({ kind: 'store', big: false, x: f.x + f.nx * off, y: f.y + f.ny * off, a: Math.atan2(f.nx, -f.ny), nx: f.nx, ny: f.ny,
         cat, awning: G.pick(AWN[cat], rng), roof: '#9c8a7a', h: 30 }, o));
     };
-    // Gioia's row, west to east from just past California
-    let s = 40;
-    for (const u of ROW) { store(east, s + u.w / 2, 1, Object.assign({ d: 40, h: 32 }, u)); s += u.w; }
+    // Gioia's row: the curb between California's and McGee's sidewalks
+    const ROW_D = 40, clear = (k) => [setback(), setback() + ROW_D].every((lat) => {
+      const [x, y] = at(east, k, 1, lat), n = M.nearest(x, y);
+      return n.e >= SW + 2 || n.road.name === 'HOPKINS ST';
+    });
+    let r0 = 0, r1;
+    while (r0 < 400 && !clear(r0)) r0 += 2;
+    for (r1 = r0; r1 < 400 && clear(r1 + 2); r1 += 2);
+    const unit = (s, w, o) => store(east, s + w / 2, 1, Object.assign({ d: ROW_D, h: 32 }, o, { w }));
+    const gioiaS = r0 + (r1 - r0) * GIOIA_AT - GIOIA_W / 2;
+    const total = ROW_WEST.reduce((a, u) => a + u.w, 0);
+    let s = r0;
+    for (const u of ROW_WEST) { const w = ((gioiaS - r0) * u.w) / total; unit(s, w, u); s += w; }
+    unit(gioiaS, GIOIA_W, { name: 'GIOIA PIZZERIA' });
+    M.rowSpan = [r0, r1];
+    const rest = r1 - gioiaS - GIOIA_W;
+    for (let k = 0; k < 2; k++) unit(gioiaS + GIOIA_W + (rest * k) / 2, rest / 2, { name: '', sign: false });
     // Monterey Market, west of its lot; Espresso Roma across Hopkins
     store(west, 262, 1, { name: 'MONTEREY MARKET', w: 80, d: 64, h: 40, big: true, landmark: true, roof: '#8d6e63' });
     store(west, 90, -1, { name: 'ESPRESSO ROMA', w: 36, d: 38, awning: '#2a9d8f' });
