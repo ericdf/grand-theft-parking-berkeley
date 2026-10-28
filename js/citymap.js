@@ -263,14 +263,90 @@
 
   M.reserve = []; // [x, y, r] spots kept clear of procedural scenery
 
+  // ---------- Hopkins at Monterey/California, laid out by hand ----------
+  // The license data puts five shops side by side on the south side of Hopkins between California and
+  // McGee: too close together to survive the overlap pass below, so they are packed here as one row,
+  // with signs on three of them. Across California: Monterey Market behind its corner parking lot, which
+  // is full. Catty-corner, north of Hopkins: Espresso Roma (1549 Hopkins; not in the license data).
+  const ROW = [
+    { name: 'MAGNANIS POULTRY', w: 28, label: 'MAGNANI POULTRY' },
+    { name: 'ASAKA SUSHI & BAR', w: 16, sign: false },
+    { name: 'MONTEREY FISH MARKET', w: 28 },
+    { name: 'HOPKINS BAKERY', w: 14, sign: false },
+    { name: 'GIOIA PIZZERIA', w: 30 },
+  ];
+  const LOT_CARS = ['#c0392b', '#2c3e50', '#7f8c8d', '#ecf0f1', '#16a085', '#34495e', '#d35400', '#8e44ad', '#bdc3c7', '#f1c40f'];
+  function layoutCorner(stores, rng) {
+    const skip = new Set();
+    const node = M.nodes.findIndex((n) => ['HOPKINS ST', 'CALIFORNIA ST', 'MONTEREY AVE'].every((nm) => n.roads.some((r) => r.name === nm)));
+    if (node < 0) return skip;
+    const N = M.nodes[node];
+    const hop = M.chain('HOPKINS ST', R.hopkinsSacramento, [R.hopkinsMonterey[0] - R.hopkinsSacramento[0], R.hopkinsMonterey[1] - R.hopkinsSacramento[1]]);
+    if (!hop) return skip;
+    const sc = M.pathProject(hop, N.x, N.y).s;
+    const east = M.pathPoint(hop, sc + 10).x > N.x ? 1 : -1, west = -east;
+    // a point on Hopkins `s` px east (dir 1) or west (dir -1) of the corner, and the unit normal
+    // toward `toward` (+1 south, -1 north)
+    const frame = (dir, s, toward) => {
+      const p = M.pathPoint(hop, sc + dir * s);
+      const nx = -p.dy * Math.sign(p.dx || 1) * toward, ny = Math.abs(p.dx) * toward;
+      return { x: p.x, y: p.y, nx, ny };
+    };
+    const at = (r, s, toward, lat) => { const f = frame(r, s, toward); return [f.x + f.nx * lat, f.y + f.ny * lat]; };
+    const HW = N.roads.find((r) => r.name === 'HOPKINS ST').hw;
+    const setback = () => HW + SW + 5;
+    const biz = new Map(D.businesses.map((b) => [b[0], b]));
+    const store = (r, s, toward, o) => {
+      const f = frame(r, s, toward), off = setback(r) + o.d / 2, cat = (biz.get(o.name) || [])[5] || 'food';
+      skip.add(o.name);
+      if (o.label) o = Object.assign({}, o, { name: o.label });
+      stores.push(Object.assign({ kind: 'store', big: false, x: f.x + f.nx * off, y: f.y + f.ny * off, a: Math.atan2(f.nx, -f.ny), nx: f.nx, ny: f.ny,
+        cat, awning: G.pick(AWN[cat], rng), roof: '#9c8a7a', h: 30 }, o));
+    };
+    // Gioia's row, west to east from just past California
+    let s = 40;
+    for (const u of ROW) { store(east, s + u.w / 2, 1, Object.assign({ d: 40, h: 32 }, u)); s += u.w; }
+    // Monterey Market, west of its lot; Espresso Roma across Hopkins
+    store(west, 262, 1, { name: 'MONTEREY MARKET', w: 80, d: 64, h: 40, big: true, landmark: true, roof: '#8d6e63' });
+    store(west, 90, -1, { name: 'ESPRESSO ROMA', w: 36, d: 38, awning: '#2a9d8f' });
+    // the lot: from the market to California's sidewalk, full
+    const L0 = setback() - 3, L1 = L0 + 112, LW = 218;
+    // walk from the market toward the corner until California's sidewalk
+    const clearOfCalifornia = (lat) => {
+      for (let k = LW; k > 0; k -= 2) {
+        const [x, y] = at(west, k, 1, lat), n = M.nearest(x, y, 'CALIFORNIA ST');
+        if (n && n.e < SW + 2) return k + 2;
+      }
+      return 0;
+    };
+    const e0 = clearOfCalifornia(L0), e1 = clearOfCalifornia(L1);
+    const lot = [at(west, e0, 1, L0), at(west, LW, 1, L0), at(west, LW, 1, L1), at(west, e1, 1, L1)];
+    M.zones.lot = lot;
+    M.lotLines = [];
+    for (const lat of [L0 + 25, L1 - 25]) {
+      for (let k = 14; k < LW; k += 28) {
+        const f = frame(west, k, 1), x = f.x + f.nx * lat, y = f.y + f.ny * lat, a = Math.atan2(f.nx, -f.ny);
+        const c = Math.cos(a), sn = Math.sin(a);
+        const corners = [[-13, -23], [13, -23], [13, 23], [-13, 23]].map(([lx, ly]) => [x + lx * c - ly * sn, y + lx * sn + ly * c]);
+        if (!corners.every(([cx, cy]) => G.pointInPoly(cx, cy, lot))) continue;
+        addToChunk({ kind: 'lotcar', x, y, a, color: G.pick(LOT_CARS, rng) });
+        for (const side of [-14, 14]) M.lotLines.push([at(west, k + side, 1, lat - 23), at(west, k + side, 1, lat + 23)]);
+      }
+    }
+    M.lotSign = at(west, LW - 6, 1, L0 - 8);
+    return skip;
+  }
+
   M.buildScenery = function () {
     const rng = G.mulberry32(1906);
     M.chunks.clear();
     const stores = [];
+    const handPlaced = layoutCorner(stores, rng);
     // Gioia first: it's the destination, so it must win any overlap with its neighbors
     const rank = (b) => (b[0].startsWith('GIOIA') ? -1 : CAT_ORDER[b[5]]);
     const biz = D.businesses.slice().sort((a, b) => rank(a) - rank(b));
     for (const [name, bx, by, nx, ny, cat] of biz) {
+      if (handPlaced.has(name)) continue;
       const n = M.nearest(bx, by);
       if (!n) continue;
       const off = n.road.hw + SW + 24;

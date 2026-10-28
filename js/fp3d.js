@@ -211,7 +211,8 @@ export function create() {
   // ---------- houses, stores, trees (instanced; static) ----------
   const rng = G.mulberry32(2718);
   const houses = [], trees = [];
-  M.chunks.forEach((list) => list.forEach((it) => { if (it.kind === 'house') houses.push(it); else if (it.kind === 'tree') trees.push(it); }));
+  const lotCars = [];
+  M.chunks.forEach((list) => list.forEach((it) => { if (it.kind === 'house') houses.push(it); else if (it.kind === 'tree') trees.push(it); else if (it.kind === 'lotcar') lotCars.push(it); }));
   const WALLS = ['#efe6d8', '#e8d8c3', '#d9e4ec', '#f3e3c3', '#e4d2d8', '#d6e2cf', '#f0efe9', '#e9d6b5', '#cfd8dc'];
   const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color();
   const yAxis = new THREE.Vector3(0, 1, 0);
@@ -262,7 +263,7 @@ export function create() {
   }
   // storefronts: a box, a glass front, an awning, and (near the car) a name board
   const stores = M.stores;
-  const storeDims = (s) => ({ w: s.hero || s.big ? 70 : 46, d: s.hero || s.big ? 48 : 38, h: s.hero || s.big ? 40 : 30 });
+  const storeDims = (s) => ({ w: s.w || (s.hero || s.big ? 70 : 46), d: s.d || (s.hero || s.big ? 48 : 38), h: s.h || (s.hero || s.big ? 40 : 30) });
   {
     const walls = lambert('#fff', { map: windowTex('store') }), flat = lambert('#d9d4cc');
     const body = new THREE.InstancedMesh(boxBase(), [walls, walls, flat, flat, walls, walls], stores.length);
@@ -296,8 +297,8 @@ export function create() {
     const holder = new THREE.Group();
     g.position.set(0, h - (s.hero ? 3 : 5), d / 2 + 0.6);
     holder.add(g);
-    if (s.hero) {
-      const tag = label(s.name, '#ffd23f', 12);
+    if (s.hero || s.landmark) {
+      const tag = label(s.name, s.hero ? '#ffd23f' : '#fff', 12);
       tag.position.set(0, h + 18, 0);
       holder.add(tag);
     }
@@ -312,8 +313,9 @@ export function create() {
     for (const s of stores) {
       const d = G.dist(s.x, s.y, car.x, car.y);
       const have = storeSigns.get(s);
+      if (s.sign === false) continue;
       if (d < 750 && !have && made < 6) { const g = storeSign(s); scene.add(g); storeSigns.set(s, g); made++; }
-      else if (d > 950 && have && !s.hero) {
+      else if (d > 950 && have && !s.hero && !s.landmark) {
         scene.remove(have);
         have.traverse((o) => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && o.geometry !== postGeo) o.geometry.dispose(); });
         storeSigns.delete(s);
@@ -435,6 +437,17 @@ export function create() {
   // Hopkins before the project: parked cars along both curbs. After it: flex posts along the cycletracks.
   const MAX_PARKED = City.world.project.parked.length || 1, MAX_POSTS = City.world.project.posts.length || 1;
   const parkedBody = new THREE.InstancedMesh(boxBase(), lambert('#fff'), MAX_PARKED);
+  // Monterey Market's lot: full, and staying that way
+  if (lotCars.length) {
+    const body = new THREE.InstancedMesh(boxBase(), lambert('#fff'), lotCars.length);
+    const cab = new THREE.InstancedMesh(boxBase(), lambert('#2b3d52'), lotCars.length);
+    lotCars.forEach((c, i) => {
+      setInst(body, i, c.x, 0, c.y, c.a, 24, 11, 44);
+      setInst(cab, i, c.x, 11, c.y, c.a, 20, 8, 22);
+      body.setColorAt(i, tmpC.set(c.color));
+    });
+    scene.add(body, cab);
+  }
   const parkedCab = new THREE.InstancedMesh(boxBase(), lambert('#2b3d52'), MAX_PARKED);
   City.world.project.parked.forEach((p, i) => parkedBody.setColorAt(i, tmpC.set(p.color)));
   const postMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.2, 2.2, 18, 8).translate(0, 9, 0), lambert('#f4f4f4'), MAX_POSTS);

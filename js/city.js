@@ -273,6 +273,8 @@ G.scenes = G.scenes || {};
         plaque: true, signOnly: true, side: i ? -1 : 1,
       }));
     }
+    // Monterey Market's lot
+    if (M.lotSign) add(M.lotSign[0], M.lotSign[1], 0.01, { sign: ['MONTEREY MARKET', 'CUSTOMER PARKING ONLY', 'LOT FULL'], plaque: true, signOnly: true, side: 1 });
     // the project sign
     const bb = M.pathPoint(hopkins, Math.max(60, sMonterey - 110));
     add(bb.x, bb.y, 0.01, { sign: ['HOPKINS CORRIDOR PROJECT', 'PARKING SPACES REMOVED: 130', 'THANK YOU FOR YOUR PATIENCE'], style: { bg: '#f26b1d', color: '#fff', border: '#222' }, signOnly: true, side: -gioiaSide });
@@ -372,7 +374,7 @@ G.scenes = G.scenes || {};
       r.pts.forEach(([px, py], i) => (i ? x.lineTo(px * miniScale, py * miniScale) : x.moveTo(px * miniScale, py * miniScale)));
       x.stroke();
     }
-    const zfill = { park: '#4f8f3a', bhs: '#b08968', oldCityHall: '#e85d75' };
+    const zfill = { park: '#4f8f3a', bhs: '#b08968', oldCityHall: '#e85d75', lot: '#555' };
     for (const [k, z] of Object.entries(M.zones)) {
       x.fillStyle = zfill[k];
       x.beginPath();
@@ -411,13 +413,16 @@ G.scenes = G.scenes || {};
   })();
 
   // ---------- solid scenery (the car can leave the road, but not drive through a house) ----------
+  // storefront footprint: hand-placed ones carry their own (see layoutCorner in citymap.js)
+  const storeW = (s) => s.w || (s.hero || s.big ? 70 : 46), storeD = (s) => s.d || (s.hero || s.big ? 48 : 38);
   const rectPoly = (x, y, a, w, d) => {
     const c = Math.cos(a), sn = Math.sin(a);
     return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([lx, ly]) => [x + lx * c - ly * sn, y + lx * sn + ly * c]);
   };
   M.chunks.forEach((list) => list.forEach((it) => {
     if (it.kind === 'house') it.poly = rectPoly(it.x, it.y, it.a, it.big ? it.w * 1.3 : it.w, it.big ? it.h * 1.2 : it.h);
-    else if (it.kind === 'store') it.poly = rectPoly(it.x, it.y, it.a, it.hero || it.big ? 70 : 46, it.hero || it.big ? 48 : 38);
+    else if (it.kind === 'store') it.poly = rectPoly(it.x, it.y, it.a, storeW(it), storeD(it));
+    else if (it.kind === 'lotcar') it.poly = rectPoly(it.x, it.y, it.a, 24, 44);
   }));
   const BHS_BUILDING = (() => {
     const bz = M.zones.bhs, [bcx, bcy] = M.zoneCenter(bz);
@@ -1251,12 +1256,16 @@ G.scenes = G.scenes || {};
     const vis = M.roads.filter((r) => r.bbox[0] - 90 < v.x1 && r.bbox[2] + 90 > v.x0 && r.bbox[1] - 90 < v.y1 && r.bbox[3] + 90 > v.y0);
     this.drawRoads(ctx, v, vis);
     this.drawTracks(ctx, v);
+    const signs = [];
     M.chunkItems(v.x0, v.y0, v.x1, v.y1, (it) => {
       if (it.x < v.x0 - 40 || it.x > v.x1 + 40 || it.y < v.y0 - 40 || it.y > v.y1 + 40) return;
       if (it.kind === 'house') drawHouse(ctx, it);
       else if (it.kind === 'tree') G.drawTree(ctx, it.x, it.y, it.r, it.hue);
-      else drawStore(ctx, it, t);
+      else if (it.kind === 'lotcar') G.drawNpcCar(ctx, it.x, it.y, it.a, it.color);
+      else { drawStore(ctx, it); signs.push(it); }
     });
+    // names after all the roofs, so a row of shops doesn't paint over its neighbors' signs
+    for (const s of signs) drawStoreName(ctx, s, t);
     this.drawLandmarks(ctx, v);
     this.drawHazards(ctx, v);
     this.drawSpots(ctx);
@@ -1515,12 +1524,12 @@ G.scenes = G.scenes || {};
     ctx.restore();
   }
 
-  function drawStore(ctx, s, t) {
+  function drawStore(ctx, s) {
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(s.a);
     // local +y faces the street
-    const w = s.hero || s.big ? 70 : 46, d = s.hero || s.big ? 48 : 38;
+    const w = storeW(s), d = storeD(s);
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillRect(-w / 2 + 3, -d / 2 + 4, w, d);
     ctx.fillStyle = s.hero ? '#7b2d26' : s.roof;
@@ -1529,6 +1538,14 @@ G.scenes = G.scenes || {};
       ctx.fillStyle = (k / 8) % 2 ? '#fff' : s.hero ? '#2a9d8f' : s.awning;
       ctx.fillRect(-w / 2 + k, d / 2 - 2, Math.min(8, w - k), 8);
     }
+    ctx.restore();
+  }
+
+  function drawStoreName(ctx, s, t) {
+    if (s.sign === false) return;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.a);
     const flip = Math.cos(s.a) < 0;
     ctx.rotate(flip ? Math.PI : 0);
     ctx.textAlign = 'center';
@@ -1539,14 +1556,14 @@ G.scenes = G.scenes || {};
       if (lines.length && (lines[lines.length - 1] + ' ' + wd).length <= 11) lines[lines.length - 1] += ' ' + wd;
       else if (lines.length < 2) lines.push(wd);
     }
-    ctx.font = G.font(s.hero || s.big ? 10 : 7.5, 800);
+    ctx.font = G.font(s.w && s.w < 40 ? s.w / 4.4 : s.hero || s.big ? 10 : 7.5, 800);
     lines.forEach((l, i) => G.outlineText(ctx, l, 0, (i - (lines.length - 1) / 2) * 9 - (s.hero ? 6 : 0), s.hero ? '#ffd23f' : '#fff', '#000', 2.5));
     if (s.hero) G.drawPizza(ctx, 0, 12, 8 + Math.sin(t * 4));
     ctx.restore();
   }
 
   City.drawZones = function (ctx, v) {
-    const fills = { park: '#79b357', bhs: '#cfc6b4', oldCityHall: '#bdb3a0' };
+    const fills = { park: '#79b357', bhs: '#cfc6b4', oldCityHall: '#bdb3a0', lot: '#4a4a52' };
     for (const [k, z] of Object.entries(M.zones)) {
       ctx.fillStyle = fills[k];
       ctx.beginPath();
@@ -1554,6 +1571,10 @@ G.scenes = G.scenes || {};
       ctx.closePath();
       ctx.fill();
     }
+    // Monterey Market's lot: stall lines
+    ctx.strokeStyle = '#e9e9e9';
+    ctx.lineWidth = 2;
+    for (const [[ax, ay], [bx, by]] of M.lotLines || []) { ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); }
     void v;
   };
 
