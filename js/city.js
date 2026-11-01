@@ -23,6 +23,10 @@ G.scenes = G.scenes || {};
   // comic-strip grawlix: profane in spirit, PG on screen
   const QUIPS_CYCLIST = ['#@$%&!', '$%#@ SEDAN!', 'GET A BIKE, @#$%!', '&%$# YOUR PARKING!', 'MOTORIST!! #@$%', 'I HAVE THE RIGHT OF WAY SPIRITUALLY, @#$%!'];
   const QUIPS_HOPKINS = ['THIS IS A BIKE STREET, #@$%!', 'SLOW DOWN, @#$%&!', 'GO PARK IN 2019, #@$%!', '#@$% YOUR SIDE MIRROR!', 'I’M CALLING THE TASK FORCE, @#$%!', 'HOPKINS IS FOR @#$%ING BIKES!'];
+  // what Hopkins thinks of your e-bike
+  const QUIPS_HOPKINS_EBIKE = ['ACOUSTIC BIKES ONLY!', '$!#$ OFF, BATTERY CHEAT!', 'NO SCOOTER BROS!', 'THAT’S A MOPED, @#$%!', 'PEDAL LIKE YOU MEAN IT, #@$%!',
+    'MOTOR = MOTORIST!', 'ENJOY YOUR FAKE FITNESS!', 'I EARNED THIS HILL, @#$%!', 'CLASS 3 IS A CRIME, #@$%!', 'NICE THROTTLE, LAZYBONES!'];
+  const QUIPS_CYCLIST_EBIKE = ['ON YOUR LEFT, BATTERY BOY!', 'CHEATER!', 'I CAN HEAR YOUR MOTOR, @#$%!', 'NOT A REAL BIKE!'];
   const QUIPS_POTHOLE = ['BOING!', 'STRUCTURALLY CHARMING!', 'THAT’S A FEATURE', 'HISTORIC AIRTIME!', 'BUDGETED FOR 2041', 'WHEEE—', 'SUSPENSION: GONE', 'NOT A BUG'];
   const QUIPS_INSPECTOR = ['NOTED.', 'FORM 8-B!', 'CITED FOR VIBES', 'NEEDS A PERMIT', 'NON-CONFORMING', 'TABLED.'];
   const QUIPS_CLOWN = ['HONK HONK!', 'MEETING’S IN THE TENT!', 'PUBLIC COMMENT? HILARIOUS.', 'I’M ON THE AGENDA!', 'SEISMICALLY CERTIFIED!'];
@@ -33,27 +37,58 @@ G.scenes = G.scenes || {};
   const normal = (p) => [-p.dy, p.dx];
 
   // closures (barricade in the middle of the named block; routing avoids them)
+  // Diverters are Berkeley's other kind of closure: concrete across a bike boulevard with a gap that a
+  // bike fits through and a car doesn't. Routing avoids them for the car, not for the e-bike.
+  const DIVERTER_GAP = 13; // half-width of the bike gap
+  const atCorner = (name, cross, toward) => {
+    const node = M.nodes.find((n) => n.roads.some((r) => r.name === name) && n.roads.some((r) => r.name === cross));
+    if (!node) return null;
+    const far = (r) => M.nodes[r.a === node.i ? r.b : r.a];
+    const r = node.roads.filter((q) => q.name === name && q.len > 160)
+      .sort((p, q) => G.dist(far(p).x, far(p).y, toward[0], toward[1]) - G.dist(far(q).x, far(q).y, toward[0], toward[1]))[0];
+    return r && { road: r, along: r.a === node.i ? 55 : r.len - 55 };
+  };
   const CLOSURES = [
     { name: 'SHATTUCK AVE', at: R.closeShattuck, lines: ['ROAD CLOSED', 'DOWNTOWN STREETSCAPE', 'PHASE 7 OF 3'] },
     { name: 'KALA BAGAI WAY', at: R.closeKalaBagai, lines: ['ROAD CLOSED', 'SEE ABOVE'] },
-    { name: 'MILVIA ST', at: R.closeMilvia, lines: ['ROAD CLOSED', 'BIKE BOULEVARD:', 'CARS MAY PASS IN SPIRIT ONLY'] },
+    { name: 'MILVIA ST', at: R.closeMilvia, diverter: true, lines: ['MILVIA BIKE BOULEVARD', 'EXCEPT BICYCLES', 'CARS MAY PASS IN SPIRIT ONLY'] },
     { name: 'SACRAMENTO ST', at: R.closeSacramento, lines: ['ROAD CLOSED', 'PAVING STUDY IN PROGRESS', 'SINCE 2011'] },
+    { name: 'VIRGINIA ST', corner: ['GRANT ST', [2424, 3583]], diverter: true, lines: ['TRAFFIC DIVERTED', 'SINCE 1975', 'EXCEPT BICYCLES'] },
+    { name: 'MC GEE AVE', corner: ['CEDAR ST', [1989, 2869]], diverter: true, lines: ['DIVERTER', 'EXCEPT BICYCLES', 'ALL OTHER TRAFFIC: CALM DOWN'] },
+    { name: 'CALIFORNIA ST', corner: ['ROSE ST', [1346, 2117]], diverter: true, lines: ['DIVERTER', 'EXCEPT BICYCLES', 'GIOIA IS THAT WAY. GOOD LUCK.'] },
   ].map((c) => {
-    const n = M.nearest(c.at[0], c.at[1], c.name);
-    if (!n) return null;
-    const r = n.road;
+    let r, along;
+    if (c.corner) {
+      const k = atCorner(c.name, c.corner[0], c.corner[1]);
+      if (!k) return null;
+      r = k.road; along = k.along;
+    } else {
+      const n = M.nearest(c.at[0], c.at[1], c.name);
+      if (!n) return null;
+      r = n.road; along = r.len / 2;
+    }
     r.closed = true;
-    r.closureAt = r.len / 2;
+    r.bikeOk = !!c.diverter;
+    r.closureAt = along;
     const p = M.pointAt(r, r.closureAt);
     const [nx, ny] = normal(p);
-    const hw = r.hw + 4, th = 11;
-    const poly = [[p.x + nx * hw - p.dx * th, p.y + ny * hw - p.dy * th], [p.x + nx * hw + p.dx * th, p.y + ny * hw + p.dy * th],
-      [p.x - nx * hw + p.dx * th, p.y - ny * hw + p.dy * th], [p.x - nx * hw - p.dx * th, p.y - ny * hw - p.dy * th]];
-    return Object.assign(c, { road: r, p, poly, sign: [p.x + nx * (r.hw + SW + 60), p.y + ny * (r.hw + SW + 60)] });
+    const th = c.diverter ? 9 : 11;
+    // a slab across the road between lateral offsets l0 and l1
+    const slab = (l0, l1) => [[p.x + nx * l1 - p.dx * th, p.y + ny * l1 - p.dy * th], [p.x + nx * l1 + p.dx * th, p.y + ny * l1 + p.dy * th],
+      [p.x + nx * l0 + p.dx * th, p.y + ny * l0 + p.dy * th], [p.x + nx * l0 - p.dx * th, p.y + ny * l0 - p.dy * th]];
+    const hw = r.hw + 4;
+    const poly = slab(-hw, hw);
+    const bikePolys = c.diverter ? [slab(-hw, -DIVERTER_GAP), slab(DIVERTER_GAP, hw)] : [poly];
+    return Object.assign(c, { road: r, p, th, gap: DIVERTER_GAP, poly, bikePolys, sign: [p.x + nx * (r.hw + SW + 60), p.y + ny * (r.hw + SW + 60)] });
   }).filter(Boolean);
 
   // chains along real streets
-  const hopkins = M.chain('HOPKINS ST', R.hopkinsSacramento, [R.hopkinsMonterey[0] - R.hopkinsSacramento[0], R.hopkinsMonterey[1] - R.hopkinsSacramento[1]]);
+  // Hopkins runs from Peralta (the Ohlone Greenway, just off the west edge of the map) east past
+  // Sacramento and The Alameda to Sutter. The Corridor Project's cycletracks run Peralta → The Alameda.
+  const peraltaHopkins = M.nodes.find((n) => n.roads.some((r) => r.name === 'PERALTA AVE') && n.roads.some((r) => r.name === 'HOPKINS ST'));
+  const hopkinsStart = peraltaHopkins ? [peraltaHopkins.x, peraltaHopkins.y] : R.hopkinsSacramento;
+  const hopkins = M.chain('HOPKINS ST', hopkinsStart, [R.hopkinsMonterey[0] - R.hopkinsSacramento[0], R.hopkinsMonterey[1] - R.hopkinsSacramento[1]]);
+  const sSacramento = M.pathProject(hopkins, R.hopkinsSacramento[0], R.hopkinsSacramento[1]).s;
   const shattuck = M.chain('SHATTUCK AVE', R.spawn, [0, -1]);
   const mlkPath = M.chain(MLK, R.mlkAllston, [0, -1]);
   const sMonterey = M.pathProject(hopkins, R.hopkinsMonterey[0], R.hopkinsMonterey[1]).s;
@@ -200,7 +235,7 @@ G.scenes = G.scenes || {};
     // The cross streets around Gioia are where you hunt for a space: they get a light dusting
     // whatever their rating, so the heist stays about parking. Hopkins itself is handled below.
     const parkStretch = [];
-    for (let s = 0; s <= 1300; s += 100) parkStretch.push(M.pathPoint(hopkins, s));
+    for (let s = sSacramento; s <= sSacramento + 1300; s += 100) parkStretch.push(M.pathPoint(hopkins, s));
     const nearPark = (r) => [0.25, 0.5, 0.75].some((f) => { const p = M.pointAt(r, r.len * f); return parkStretch.some((q) => G.dist(p.x, p.y, q.x, q.y) < 450); });
     for (const r of M.roads) {
       if (CANYON && r === CANYON.r || r.preserve || r.project) continue;
@@ -276,8 +311,11 @@ G.scenes = G.scenes || {};
     // Monterey Market's lot
     if (M.lotSign) add(M.lotSign[0], M.lotSign[1], 0.01, { sign: ['MONTEREY MARKET', 'CUSTOMER PARKING ONLY', 'LOT FULL'], plaque: true, signOnly: true, side: 1 });
     // the project sign
-    const bb = M.pathPoint(hopkins, Math.max(60, sMonterey - 110));
+    const bb = M.pathPoint(hopkins, Math.max(sSacramento + 60, sMonterey - 110));
     add(bb.x, bb.y, 0.01, { sign: ['HOPKINS CORRIDOR PROJECT', 'PARKING SPACES REMOVED: 130', 'THANK YOU FOR YOUR PATIENCE'], style: { bg: '#f26b1d', color: '#fff', border: '#222' }, signOnly: true, side: -gioiaSide });
+    // where the cycletracks leave the map: on to the Ohlone Greenway at Peralta
+    const west = (() => { for (let s = 0; s < sSacramento; s += 10) { const p = M.pathPoint(hopkins, s); if (p.x > 150) return p; } return null; })();
+    if (west) add(west.x, west.y, 0.01, { sign: ['← OHLONE GREENWAY', 'CYCLETRACK CONTINUES', 'CARS: PLEASE DON’T'], style: { bg: '#2f7d4a', color: '#fff', border: '#fff' }, signOnly: true, side: 1 });
     // set pieces
     const sp = M.pathPoint(shattuck, 330);
     const [snx, sny] = normal(sp);
@@ -482,7 +520,7 @@ G.scenes = G.scenes || {};
       this.car = new G.Car(p.x - p.dy * 26, p.y + p.dx * 26, Math.atan2(p.dx, -p.dy)); // right-hand lane
       G.hud.banner('MISSION START', 'POTHOLE PARADISE — DRIVE TO HOPKINS', { sting: 'start', dur: 3 });
       G.hud.setObjective('PARK ON HOPKINS', 'Drive to Hopkins & Monterey. Follow the yellow arrow & minimap route. Mind the craters.');
-      G.hud.toast('ARROWS / WASD drive · SPACE reset to road · SHIFT handbrake · M map · P pause', { dur: 6, color: '#9be7ff' });
+      G.hud.toast('ARROWS / WASD drive · B car / e-bike · SPACE reset to road · SHIFT handbrake · M map · P pause', { dur: 6, color: '#9be7ff' });
     } else if (this.phase === 'hopkins') {
       const p = M.pathPoint(hopkins, sMonterey + 70);
       this.car = new G.Car(p.x, p.y, Math.atan2(p.dx, -p.dy));
@@ -494,6 +532,7 @@ G.scenes = G.scenes || {};
       this.spots.forEach((sp) => { sp.state = 'done'; sp.pop = 1; });
       this.startCityHall(true);
     }
+    this.car.setVehicle(G.isBike());
     this.car.onLand = (car) => this.onLand(car);
     if (opts.corridor) this.startCinema();
     this.camX = this.car.x;
@@ -554,7 +593,7 @@ G.scenes = G.scenes || {};
     c.t += dt;
     const t = c.t;
     const beat = (at) => before < at && t >= at;
-    const sweep = ([t0, t1]) => (t < t0 ? -1 : t >= t1 ? Infinity : G.lerp(0, PROJECT.s1, (t - t0) / (t1 - t0)));
+    const sweep = ([t0, t1]) => (t < t0 ? -1 : t >= t1 ? Infinity : G.lerp(Math.min(sSacramento, PROJECT.s1), PROJECT.s1, (t - t0) / (t1 - t0)));
     // phase 1: repave
     const paveS = sweep(CINE.pave);
     if (paveS !== this.paveS) {
@@ -827,8 +866,11 @@ G.scenes = G.scenes || {};
       G.saveSettings();
       G.hud.toast(G.settings.autopilot ? 'AUTOPILOT ENGAGED. IT KNOWS A GUY AT THE PERMIT OFFICE.' : 'AUTOPILOT OFF. YOUR WHEEL, YOUR CRATERS.', { color: '#9be7ff', dur: 2.5 });
     }
+    if (inp.was('KeyB')) this.switchVehicle();
+    if (car.bike !== G.isBike()) { car.setVehicle(G.isBike()); this.routeT = 0; } // changed in Options
     const pilot = G.settings.autopilot ? this.pilot(dt) : null;
     car.update(dt, pilot || inp);
+    if (car.bike) this.checkDiverterPass();
 
     const hit = car.checkPotholes(this.livePotholes);
     if (hit) {
@@ -853,8 +895,10 @@ G.scenes = G.scenes || {};
       if (td < TENT.r + car.r) hits.push({ nx: (car.x - TENT.x) / (td || 1), ny: (car.y - TENT.y) / (td || 1), depth: TENT.r + car.r - td });
       for (const c of CLOSURES) {
         if (Math.abs(c.p.x - car.x) > 120 || Math.abs(c.p.y - car.y) > 120) continue;
-        const h = G.circlePoly(car.x, car.y, car.r, c.poly);
-        if (h) hits.push(h);
+        for (const poly of car.bike ? c.bikePolys : [c.poly]) {
+          const h = G.circlePoly(car.x, car.y, car.r, poly);
+          if (h) { hits.push(h); if (c.diverter && !car.bike) this.divertedBy(c); }
+        }
       }
       for (const p of this.parked) {
         if (p.gone || Math.abs(p.x - car.x) > 60 || Math.abs(p.y - car.y) > 60) continue;
@@ -925,7 +969,7 @@ G.scenes = G.scenes || {};
     this.routeT -= dt;
     const tg = this.target();
     if (tg && this.routeT <= 0) {
-      this.route = M.route(car.x, car.y, tg.x, tg.y);
+      this.route = M.route(car.x, car.y, tg.x, tg.y, car.bike);
       this.routeT = 0.35;
     }
 
@@ -955,10 +999,10 @@ G.scenes = G.scenes || {};
     car.vx *= Math.exp(-1.1 * dt);
     car.vy *= Math.exp(-1.1 * dt);
     if (car.speed < 8) return;
-    // ruts from both rear wheels
+    // ruts from both rear wheels (the e-bike has just the one)
     const fx = Math.sin(car.a), fy = -Math.cos(car.a), rx = Math.cos(car.a), ry = Math.sin(car.a);
-    const wheels = [-11, 11].map((o) => [car.x - fx * 14 + rx * o, car.y - fy * 14 + ry * o]);
-    if (!this.lastRut) { this.lastRut = wheels; return; }
+    const wheels = car.bike ? [[car.x - fx * 20, car.y - fy * 20]] : [-11, 11].map((o) => [car.x - fx * 14 + rx * o, car.y - fy * 14 + ry * o]);
+    if (!this.lastRut || this.lastRut.length !== wheels.length) { this.lastRut = wheels; return; }
     if (G.dist(wheels[0][0], wheels[0][1], this.lastRut[0][0], this.lastRut[0][1]) < 6) return;
     wheels.forEach((w, i) => {
       this.tracks.push([this.lastRut[i][0], this.lastRut[i][1], w[0], w[1]]);
@@ -969,7 +1013,7 @@ G.scenes = G.scenes || {};
     this.sodT -= dt;
     if (car.speed > 70 && this.sodT <= 0) {
       this.sodT = 0.07;
-      const [wx, wy] = wheels[Math.random() < 0.5 ? 0 : 1];
+      const [wx, wy] = wheels[Math.floor(Math.random() * wheels.length)];
       this.fx.burst(wx, wy, 3, { color: ['#4c8a3c', '#6b4a2f', '#3a7034', '#7b5a3a'], speed: 90, life: 0.6, size: 4, vz: 120 });
     }
     this.turfed = (this.turfed || 0) + car.speed * dt;
@@ -1053,7 +1097,7 @@ G.scenes = G.scenes || {};
         p.vx *= k; p.vy *= k; p.vr *= k;
         if (Math.abs(p.vx) + Math.abs(p.vy) < 2) { p.vx = 0; p.vy = 0; }
       }
-      if (!p.down && car.z < 20 && Math.abs(p.x - car.x) < 22 && Math.abs(p.y - car.y) < 22 && G.dist(p.x, p.y, car.x, car.y) < car.r + 4) {
+      if (!p.down && !car.bike && car.z < 20 && Math.abs(p.x - car.x) < 22 && Math.abs(p.y - car.y) < 22 && G.dist(p.x, p.y, car.x, car.y) < car.r + 4) {
         p.down = true;
         p.vx = car.vx * 0.6; p.vy = car.vy * 0.6;
         p.vr = (Math.random() - 0.5) * 10;
@@ -1097,7 +1141,7 @@ G.scenes = G.scenes || {};
       if (c.curseCd <= 0 && d < (onHopkins ? 150 : 85) && (onHopkins || car.speed > 80)) {
         c.curseCd = onHopkins ? 2.2 : 4;
         c.wobble = Math.max(c.wobble, 0.4);
-        this.floaters.add(p.x, p.y - 24, G.pick(onHopkins ? QUIPS_HOPKINS : QUIPS_CYCLIST), '#ff7b7b', 1.6, onHopkins ? 15 : 13);
+        this.floaters.add(p.x, p.y - 24, G.pick(this.quips(onHopkins)), '#ff7b7b', 1.6, onHopkins ? 15 : 13);
       }
       if (d < car.r + 10 && c.cd <= 0 && car.z < 15) {
         c.cd = 1.2;
@@ -1113,8 +1157,58 @@ G.scenes = G.scenes || {};
         G.audio.play('bell');
         G.hud.addShake(5);
         c.curseCd = 2;
-        this.floaters.add(p.x, p.y - 22, G.pick(c.name === 'HOPKINS ST' ? QUIPS_HOPKINS : QUIPS_CYCLIST), '#ff7b7b', 1.8, 15);
+        this.floaters.add(p.x, p.y - 22, G.pick(this.quips(c.name === 'HOPKINS ST')), '#ff7b7b', 1.8, 15);
       }
+    }
+  };
+
+  // Hopkins cyclists hate cars, and hate e-bikes more
+  City.quips = function (onHopkins) {
+    if (this.car.bike) return onHopkins ? QUIPS_HOPKINS_EBIKE : QUIPS_CYCLIST_EBIKE;
+    return onHopkins ? QUIPS_HOPKINS : QUIPS_CYCLIST;
+  };
+
+  // ---------- car / e-bike ----------
+  City.switchVehicle = function () {
+    const car = this.car;
+    if (car.locked || this.cinema || car.airborne || this.parkSeq >= 0) return;
+    G.settings.vehicle = G.isBike() ? 'car' : 'ebike';
+    G.saveSettings();
+    car.setVehicle(G.isBike());
+    this.routeT = 0;
+    this.fx.burst(car.x, car.y, 14, { type: 'poof', color: ['#fff', '#ddd'], speed: 70, life: 0.5, size: 8 });
+    G.audio.play('whoosh');
+    if (car.bike) {
+      G.hud.toast('CARGO E-BIKE ENGAGED. DIVERTERS ARE NOW MERELY SUGGESTIONS.', { color: '#7CFC00', dur: 3 });
+      if (!G.stats.ebikeTaskForce) { G.stats.ebikeTaskForce = true; G.formCommittee('E-Bike Classification Task Force'); }
+    } else {
+      G.hud.toast('BACK IN THE PRIUS. THE DIVERTERS REMEMBER YOU.', { color: '#9be7ff', dur: 3 });
+    }
+  };
+
+  // the car bumped a diverter: once per diverter, remind it who the gap is for
+  City.divertedBy = function (c) {
+    if (c.toldCar && this.t - c.toldCar < 6) return;
+    c.toldCar = this.t;
+    this.floaters.add(c.p.x, c.p.y - 30, G.pick(['EXCEPT BICYCLES', 'DIVERTED!', 'THE GAP IS FOR BIKES']), '#7CFC00', 1.4, 15);
+    if (!G.stats.divertedToast) {
+      G.stats.divertedToast = true;
+      G.hud.toast('A TRAFFIC DIVERTER. BIKES FIT THROUGH THE GAP. PRESS B TO BECOME A BIKE.', { color: '#7CFC00', dur: 4 });
+    }
+  };
+
+  // the e-bike slipped through a diverter's gap
+  City.checkDiverterPass = function () {
+    const car = this.car;
+    for (const c of CLOSURES) {
+      if (!c.diverter || Math.abs(c.p.x - car.x) > 60 || Math.abs(c.p.y - car.y) > 60) continue;
+      const side = Math.sign((car.x - c.p.x) * c.p.dx + (car.y - c.p.y) * c.p.dy);
+      if (c.side && side && side !== c.side && G.dist(car.x, car.y, c.p.x, c.p.y) < 30) {
+        this.floaters.add(c.p.x, c.p.y - 30, G.pick(['THROUGH THE GAP!', 'TECHNICALLY A BICYCLE', 'DIVERTER: DIVERTED', 'BIKE BOULEVARD!']), '#7CFC00', 1.4, 16);
+        G.audio.play('blip');
+        G.stats.divertersThreaded = (G.stats.divertersThreaded || 0) + 1;
+      }
+      if (side) c.side = side;
     }
   };
 
@@ -1221,7 +1315,8 @@ G.scenes = G.scenes || {};
       s.state = 'done';
       s.pop = 0;
       car.locked = false;
-      G.hud.banner('PARKING SPACE NOT FOUND', 'IT IS NOW A BIKE-ONLY PIZZA PARKLET. SLICES FOR CYCLISTS.', { sting: 'fail', dur: 3.4, color: '#ff5a5a' });
+      if (car.bike) G.hud.banner('BIKE PARKING NOT FOUND', 'IT IS NOW AN ACOUSTIC-BIKE-ONLY PIZZA PARKLET. NO MOTORS.', { sting: 'fail', dur: 3.4, color: '#ff5a5a' });
+      else G.hud.banner('PARKING SPACE NOT FOUND', 'IT IS NOW A BIKE-ONLY PIZZA PARKLET. SLICES FOR CYCLISTS.', { sting: 'fail', dur: 3.4, color: '#ff5a5a' });
       this.fx.burst(s.x, s.y, 30, { type: 'poof', color: ['#fff', '#eee', '#ddd'], speed: 90, life: 1, size: 10 });
       G.audio.play('poof');
       G.stats.parkingYears++;
@@ -1230,7 +1325,8 @@ G.scenes = G.scenes || {};
       G.addStar('PARKING SPACE REASSIGNED TO PIZZA');
       G.formCommittee('Bike-Only Pizza Parklet Activation Committee');
     }
-    if (ev(2.8)) this.floaters.add(s.x, s.y - 30, 'ONE SLICE, PLEASE! (I CAME BY BIKE)', '#7CFC00', 2, 14);
+    if (ev(2.8)) this.floaters.add(s.x, s.y - 30, car.bike ? 'ONE SLICE, PLEASE! (I CAME BY BIKE!)' : 'ONE SLICE, PLEASE! (I CAME BY BIKE)', '#7CFC00', 2, 14);
+    if (car.bike && ev(3.6)) this.floaters.add(s.x, s.y - 30, 'SORRY. WE CAN HEAR YOUR BATTERY.', '#ff7b7b', 2, 14);
     if (ev(4.6)) G.hud.banner('ITEM ACQUIRED', 'PARKING APPEAL FORM 27-B (14 PAGES, DOUBLE-SIDED)', { sting: 'start', dur: 2.6, color: '#9be7ff' });
     if (ev(7.2)) {
       this.parkSeq = -1;
@@ -1713,6 +1809,7 @@ G.scenes = G.scenes || {};
 
   City.drawClosure = function (ctx, c, v) {
     if (c.p.x < v.x0 - 150 || c.p.x > v.x1 + 150 || c.p.y < v.y0 - 150 || c.p.y > v.y1 + 150) return;
+    if (c.diverter) { this.drawDiverter(ctx, c); return; }
     ctx.save();
     ctx.beginPath();
     c.poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
@@ -1734,6 +1831,43 @@ G.scenes = G.scenes || {};
     ctx.fillStyle = on ? '#ffd23f' : '#8a6d00';
     [c.poly[0], c.poly[2]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); });
     G.drawSign(ctx, c.sign[0], c.sign[1], c.lines, { bg: '#f26b1d', color: '#fff', border: '#222', size: 11 });
+  };
+
+  // Concrete planters across the street, with a bike-width gap painted green down the middle.
+  City.drawDiverter = function (ctx, c) {
+    const { p, th } = c;
+    const a = Math.atan2(p.dy, p.dx); // local x along the road, local y across it
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(a);
+    const hw = c.road.hw + 4, g = DIVERTER_GAP;
+    ctx.fillStyle = '#3f9b57';
+    ctx.fillRect(-th - 6, -g, (th + 6) * 2, g * 2);
+    ctx.strokeStyle = '#fff'; // bike stencil in the gap
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(-6, 0, 3.2, 0, Math.PI * 2); ctx.moveTo(9.2, 0); ctx.arc(6, 0, 3.2, 0, Math.PI * 2);
+    ctx.moveTo(-6, 0); ctx.lineTo(-1, -1); ctx.lineTo(6, 0); ctx.moveTo(-1, -1); ctx.lineTo(3, -4);
+    ctx.stroke();
+    for (const [l0, l1] of [[-hw, -g], [g, hw]]) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      G.rr(ctx, -th + 2, l0 + 2, th * 2, l1 - l0, 4);
+      ctx.fill();
+      ctx.fillStyle = '#c9c3b6';
+      G.rr(ctx, -th, l0, th * 2, l1 - l0, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#6f695e';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#5c8a3a'; // shrubs in the planters
+      for (let l = l0 + 8; l < l1 - 4; l += 12) {
+        ctx.beginPath(); ctx.arc(0, l, 6.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#ffd23f'; // reflector posts at the gap
+      ctx.beginPath(); ctx.arc(0, l0 === -hw ? l1 - 2 : l0 + 2, 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    G.drawSign(ctx, c.sign[0], c.sign[1], c.lines, { bg: '#2f7d4a', color: '#fff', border: '#fff', size: 11 });
   };
 
   function backOut(t) {

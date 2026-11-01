@@ -1,16 +1,23 @@
 'use strict';
 // Finale — Mission Accomplished. A ceremony in the Ashby BART lot (no parking), confetti, and one final pothole.
+// On the cargo e-bike the lot has no charging stations either, and the battery goes up instead.
 (function () {
   const F = {};
   G.scenes.finale = F;
 
   const LINES = [
-    [0, 'On behalf of the city, congratulations on a resounding success.'],
+    [1, 'On behalf of the city, congratulations on a resounding success.'],
     [2, 'Welcome to the Ashby BART parking lot. Please do not park.'],
-    [1, 'We have formed a committee to celebrate them.'],
+    [0, 'We have formed a committee to celebrate them.'],
     [3, 'I abstain from applauding, but in a supportive way.'],
   ];
-  const MX = [380, 540, 740, 900];
+  const LINES_EBIKE = [
+    [1, 'On behalf of the city, congratulations on a resounding success.'],
+    [2, 'Welcome to the Ashby BART lot. There are no charging stations. Please do not charge.'],
+    [0, 'We have formed a committee to celebrate them.'],
+    [3, 'I abstain from applauding, but in a supportive way.'],
+  ];
+  const MX = [540, 380, 740, 900]; // the chair (member 1) presides from the left
   const PIT = { x: 640, y: 560 };
 
   F.enter = function () {
@@ -25,6 +32,10 @@
     this.sliceFly = null;
     this.sign = 0;
     this.shown = false;
+    this.bike = G.isBike();
+    this.fire = 0; // seconds the battery has been burning
+    this.tip = 0; // 0 upright … 1 on its side
+    this.rider = null; // the rider, once they've bailed out
     G.hud.reset();
     G.hud.setTicker(null);
     G.hud.banner('FINALE', 'MISSION ACCOMPLISHED (TERMS AND CONDITIONS APPLY)', { sting: 'start', dur: 2.4 });
@@ -41,8 +52,8 @@
     this.t += dt;
     if (G.input.interact() && !this.shown && this.t > 1) this.t = Math.max(this.t, 17.5);
     // roll in
-    if (this.t < 3) this.carY = G.lerp(860, 640, G.smoothstep(this.t / 3));
-    LINES.forEach(([m, text], i) => {
+    if (this.t < 3) this.carY = G.lerp(860, this.bike ? 676 : 640, G.smoothstep(this.t / 3)); // the bike stops short of the crater
+    (this.bike ? LINES_EBIKE : LINES).forEach(([m, text], i) => {
       if (this.once('l' + i, 3 + i * 3.1 + (i >= 3 ? 2.6 : 0))) this.bubble = { m, text };
     });
     if (this.once('ceremony', 6)) G.formCommittee('Ceremony Planning Committee');
@@ -50,20 +61,104 @@
     if (this.t > 6.2 && this.t < 15 && Math.random() < dt * 30) this.confetti();
     // the last pothole
     if (this.once('roll', 12.2)) this.bubble = null;
-    if (this.t > 12.2 && this.t < 13.2) this.carY = G.lerp(640, PIT.y + 6, G.smoothstep((this.t - 12.2) / 1));
-    if (this.once('plop', 13.2)) {
+    if (this.bike) this.updateBattery(dt);
+    else if (this.t > 12.2 && this.t < 13.2) this.carY = G.lerp(640, PIT.y + 6, G.smoothstep((this.t - 12.2) / 1));
+    if (!this.bike && this.once('plop', 13.2)) {
       G.audio.play('plop');
       G.hud.addShake(10);
       this.sliceFly = { t: 0 };
       this.fx.burst(PIT.x, PIT.y, 20, { color: ['#3a332c', '#7b6d5e', '#c9b79c'], speed: 180, life: 0.8, size: 6 });
     }
-    if (this.t > 13.2) this.sink = Math.min(1, this.sink + dt * 2.5);
+    if (this.t > 13.2 && !this.bike) this.sink = Math.min(1, this.sink + dt * 2.5);
     if (this.sliceFly) this.sliceFly.t += dt;
     if (this.once('sign', 14.4)) { this.sign = 0.01; G.audio.play('stamp'); }
     if (this.sign > 0) this.sign = Math.min(1, this.sign + dt * 3);
     if (this.once('review', 15.6)) G.formCommittee('Committee to Review This Ceremony');
     if (this.once('end', 18)) this.showEnd();
     this.fx.update(dt);
+  };
+
+  // The e-bike doesn't reach the pothole: the battery on the rear rack bursts into flames first,
+  // and the slice is launched out of the cargo box into the crater anyway.
+  const BAIL = 12.6, TIP = 13.0, IGNITE = 13.3;
+  const FALL = 34; // how far left the bike ends up when it tips over
+  F.batteryAt = function () {
+    if (this.tip < 1) return [this.carX, this.carY + 14 * 1.6];
+    const [x, y] = G.CARGO_BATTERY_SIDE;
+    return [this.carX - FALL + x * 1.6, this.carY + y * 1.6];
+  };
+  F.updateBattery = function (dt) {
+    const [bx, by] = this.batteryAt();
+    if (this.once('smoke', 12.2)) G.audio.play('beep');
+    // the rider sees the smoke and jumps clear, off to the right
+    if (this.once('bail', BAIL)) {
+      this.rider = { t: 0, x0: this.carX, y0: this.carY, x1: this.carX + 130, y1: this.carY + 20 };
+      G.audio.play('whoosh');
+      this.bubble = null;
+    }
+    if (this.rider) this.rider.t += dt;
+    // the riderless bike tips over to the left
+    if (this.t > TIP) {
+      const was = this.tip;
+      this.tip = Math.min(1, (this.t - TIP) / 0.3);
+      if (was < 1 && this.tip >= 1) { G.audio.play('bonk'); G.hud.addShake(5); }
+    }
+    if (this.t > 12.2 && this.t < IGNITE && Math.random() < dt * 14) {
+      this.fx.add({ type: 'poof', x: bx + (Math.random() - 0.5) * 8, y: by, vx: (Math.random() - 0.5) * 20, vy: -50, drag: 0.5, size: 6, life: 1.2, color: '#9a9a9a' });
+    }
+    if (this.once('plop', IGNITE)) {
+      G.audio.play('pop');
+      G.audio.play('whoosh');
+      G.hud.addShake(12);
+      this.fire = 0.01;
+      this.sliceFly = { t: 0 };
+      this.fx.burst(bx, by, 24, { type: 'poof', color: ['#ffd23f', '#ff9f1c', '#ff5a1f', '#fff3b0'], speed: 220, life: 0.6, size: 8 });
+      this.bubble = { m: 2, text: 'Ah. That is why we don’t have charging stations.' };
+      G.formCommittee('Lithium-Ion Fire Safety Task Force');
+    }
+    if (this.fire > 0) {
+      this.fire += dt;
+      const calm = G.settings.reducedMotion ? 0.4 : 1;
+      if (Math.random() < dt * 40 * calm) {
+        this.fx.add({ type: 'poof', x: bx + (Math.random() - 0.5) * 18, y: by + (Math.random() - 0.5) * 8, vx: (Math.random() - 0.5) * 30, vy: -90 - Math.random() * 70, drag: 0.8,
+          size: 3 + Math.random() * 4, life: 0.4 + Math.random() * 0.35, color: G.pick(['#ffd23f', '#ff9f1c', '#ff5a1f', '#ff3b1f']) });
+      }
+      if (Math.random() < dt * 12 * calm) {
+        this.fx.add({ type: 'poof', x: bx - 10, y: by - 14, vx: -35 - Math.random() * 25, vy: -25, drag: 0.4, size: 9, life: 1.6, color: G.pick(['#555', '#6b6b6b', '#444']) });
+      }
+      if (Math.random() < dt * 3) G.audio.play('pop');
+    }
+    if (this.once('nocharge', 16.6)) this.bubble = { m: 1, text: 'Motion to study charging stations. After the fire is out. Or before. Tabled.' };
+  };
+
+  // Tipping over reads, from above, as the top view narrowing to nothing and the side profile widening out.
+  F.drawFallingBike = function (ctx) {
+    const k = this.tip;
+    ctx.save();
+    ctx.translate((-FALL * G.smoothstep(k)) / 1.6, 0);
+    if (k < 0.5) {
+      ctx.scale(1 - k * 2, 1);
+      G.drawCargoBike(ctx, { slice: !this.sliceFly, burnt: this.fire > 0, noRider: true });
+    } else {
+      ctx.scale(k * 2 - 1, 1);
+      G.drawCargoBikeSide(ctx, { burnt: this.fire > 0 });
+    }
+    ctx.restore();
+  };
+
+  // the rider's leap: an arc (bigger at the top of it), then standing well back, arms going
+  F.drawRider = function (ctx) {
+    const r = this.rider, k = Math.min(1, r.t / 0.55);
+    const x = G.lerp(r.x0, r.x1, G.smoothstep(k)), y = G.lerp(r.y0, r.y1, k);
+    const hop = Math.sin(k * Math.PI);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(x, y + 10, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(x, y - hop * 40);
+    ctx.scale(1.6 * (1 + hop * 0.35), 1.6 * (1 + hop * 0.35));
+    ctx.rotate(k < 1 ? hop * 0.6 : Math.sin(this.t * 7) * 0.08);
+    G.drawCargoRider(ctx, { flail: r.t });
+    ctx.restore();
   };
 
   F.confetti = function () {
@@ -111,7 +206,7 @@
     ctx.font = G.font(26);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    [[115, 'NO PARKING'], [1165, 'FUTURE HOUSING']].forEach(([x, txt]) => {
+    [[115, this.bike ? 'NO CHARGING' : 'NO PARKING'], [1165, 'FUTURE HOUSING']].forEach(([x, txt]) => {
       ctx.save();
       ctx.translate(x, 420);
       ctx.rotate(-Math.PI / 2);
@@ -151,7 +246,8 @@
     ctx.font = G.font(24);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('CIVIC ACHIEVEMENT CEREMONY — ASHBY BART LOT (NO PARKING)', 640, 57);
+    if (this.bike) ctx.font = G.font(19);
+    ctx.fillText(this.bike ? 'CIVIC ACHIEVEMENT CEREMONY — ASHBY BART LOT (NO CHARGING STATIONS)' : 'CIVIC ACHIEVEMENT CEREMONY — ASHBY BART LOT (NO PARKING)', 640, 57);
     // council on stage
     ctx.fillStyle = '#6d4c41';
     ctx.fillRect(250, 140, 780, 30);
@@ -177,12 +273,14 @@
     ctx.scale(1.6 * sk, 1.6 * sk);
     ctx.rotate(this.sink * 0.35);
     if (this.sink > 0) ctx.globalAlpha = 1 - this.sink * 0.25;
-    G.drawCarBody(ctx, { slice: !this.sliceFly });
+    if (this.bike && (this.rider || this.tip > 0)) this.drawFallingBike(ctx);
+    else G.drawCarBody(ctx, { slice: !this.sliceFly, burnt: this.fire > 0 });
     ctx.restore();
+    if (this.rider) this.drawRider(ctx);
     if (this.sliceFly) {
       const bt = Math.min(1, this.sliceFly.t / 1.1);
       const bx = G.lerp(this.carX, PIT.x + 70, bt);
-      const by = G.lerp(this.carY - 10, PIT.y + 12, bt) - Math.sin(bt * Math.PI) * 160;
+      const by = G.lerp(this.carY - (this.bike ? 26 : 10), PIT.y + 12, bt) - Math.sin(bt * Math.PI) * 160;
       const br = bt < 1 ? 14 : 14 * Math.max(0, 1 - (this.sliceFly.t - 1.1) * 2);
       if (br > 0) G.drawPizza(ctx, bx, by, br, 0, bt * 8);
     }

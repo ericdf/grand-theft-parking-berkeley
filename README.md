@@ -57,7 +57,7 @@ The slalom is based on the real street. Raised concrete islands at the crosswalk
 
 ## Hopkins: the Corridor Project and the Pothole Preserve
 
-Hopkins from Sacramento to The Alameda is the Hopkins Corridor Project. On the drive there it is the failed street, with real-rated potholes and parked cars along both curbs. The first time you reach Hopkins, a ~14 s letterboxed intermission plays the project out in one crane shot over the Gioia block:
+Hopkins from Peralta (the Ohlone Greenway, just off the west edge of the map) to The Alameda is the Hopkins Corridor Project. On the drive there it is the failed street, with real-rated potholes and parked cars along both curbs. The first time you reach Hopkins, a ~14 s letterboxed intermission plays the project out in one crane shot over the Gioia block:
 
 1. "HOPKINS STREET, TODAY · PARKING SPACES: 130"
 2. Phase 1, repaving: the paver sweeps down the street and the craters fill in.
@@ -69,11 +69,26 @@ E skips it. It uses the 3D renderer even in the top-down view (three.js starts l
 
 Afterwards Hopkins is smooth and has no parking. Cyclists ride in the cycletracks, and knocking down a flex post forms the Cycletrack Incursion Review Panel. The space hunt moves to the real cross streets (McGee, Carlotta, Monterey), where each space still turns into a bike corral, parklet, island or loading zone. The last "space" is painted in the cycletrack in front of Gioia. Stop in it and it becomes a Bike-Only Pizza Parklet (slices for cyclists), which nudges your car out.
 
+The cycletracks run the whole project: west past Sacramento to the map edge, where a sign points on to the Ohlone Greenway at Peralta, and east to The Alameda. The intermission's paver and paint start at Sacramento. Everything west of there is done off camera.
+
 East of The Alameda, Hopkins to Sutter is rated Failed in the MTC pavement data and is outside project limits: the Hopkins Pothole Preserve ("DAMAGING VEHICLES SINCE 2000"). It has rows of craters wall to wall, except for one gap that weaves left, center, right, so a careful driver can thread it (or take the sidewalk).
 
 ## Play or watch
 
 The title screen offers **PLAY** and **WATCH**. WATCH runs the whole game on autopilot, start to finish, for anyone who would rather see it than drive it. `?watch` in the URL lands on the title with WATCH focused, so Enter or a tap starts it.
+
+## Car or cargo e-bike
+
+Pick **THE PRIUS** or **CARGO E-BIKE** on the title screen, toggle it in Options, press **B** while driving in the city (the 🚲 touch button), or add `?vehicle=ebike` to the URL. The e-bike is a front-loading cargo trike with a plywood box, drawn in both views. The slice rides in the box.
+
+There is also a **HORSE** button. It can't be chosen: the game buzzes and says "DENIED: Berkeley street conditions are inhumane." Each click after that adds a different excuse.
+
+- **Diverters.** Berkeley's bike-boulevard diverters are concrete planters across the street, with a gap that a bike fits through and a car doesn't: Milvia (at Hearst), Virginia at Grant, McGee at Cedar, and California at Rose. The car's GPS routes around them. The e-bike's GPS goes straight through, and so does the autopilot.
+- **Hopkins hates it.** The cycletrack cyclists, who already curse cars, are worse to e-bikes: "ACOUSTIC BIKES ONLY!", "$!#$ OFF, BATTERY CHEAT!", "NO SCOOTER BROS!" On the bike you ride between the flex posts instead of knocking them down. The Gioia space still turns into a pizza parklet, now acoustic bikes only.
+- **The council.** You keep the helmet on at the podium. Instead of a parking space you ask for an e-bike charging station, and complain that the roadies and fixies are mean to e-bikes.
+- **MLK.** Past the original finish line the battery dies: a "BATTERY DEPLETED!" stamp, and the rest of the run to Ashby is at 70% top speed.
+- **Ashby BART.** The lot has no charging stations either: the slalom's finish banner says "NOW CHARGE", and the stencils and the ceremony banner say NO CHARGING. At the ceremony the bike never reaches the final pothole. Its battery starts smoking, the rider jumps clear, the bike falls over, and the battery bursts into flames. The slice is thrown into the crater anyway, and the Lithium-Ion Fire Safety Task Force is formed.
+- The e-bike is narrower and a little slower than the Prius. It still launches out of potholes, and it leaves one rut in the grass, not two.
 
 ## Autopilot
 
@@ -88,7 +103,7 @@ The finale plays itself either way.
 
 ## Test / debug jumps
 
-Append `?start=corridor|hopkins|cityhall|council|slalom|finale` to the URL to jump straight to a mission, `?view=fp` for the 3D chase view, or `?touch` to force the on-screen controls.
+Append `?start=corridor|hopkins|cityhall|council|slalom|finale` to the URL to jump straight to a mission, `?view=fp` for the 3D chase view, `?vehicle=ebike` for the cargo e-bike, or `?touch` to force the on-screen controls.
 
 ## Map data
 

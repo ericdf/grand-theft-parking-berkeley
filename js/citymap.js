@@ -106,10 +106,12 @@
   };
 
   // ---------- routing ----------
-  M.route = function (cx, cy, tx, ty) {
+  // `bike`: route through diverters that are closed to cars only (r.bikeOk)
+  M.route = function (cx, cy, tx, ty, bike) {
     const cn = M.nearest(cx, cy), tn = M.nearest(tx, ty);
     if (!cn || !tn) return null;
-    const blockedBetween = (r, a0, a1) => r.closed && (r.closureAt - a0) * (r.closureAt - a1) < 0;
+    const shut = (r) => r.closed && !(bike && r.bikeOk);
+    const blockedBetween = (r, a0, a1) => shut(r) && (r.closureAt - a0) * (r.closureAt - a1) < 0;
     if (cn.road === tn.road && !blockedBetween(cn.road, cn.along, tn.along)) {
       return [[cx, cy], ...M.subPath(cn.road, cn.along, tn.along), [tx, ty]];
     }
@@ -127,7 +129,7 @@
       if (u < 0) break;
       done[u] = 1;
       for (const r of M.nodes[u].roads) {
-        if (r.closed || r === tr) continue;
+        if (shut(r) || r === tr) continue;
         const v = r.a === u ? r.b : r.a;
         const nd = du + r.len * (r.penalty || 1);
         if (nd < dist[v]) { dist[v] = nd; via[v] = { road: r, to: u }; }

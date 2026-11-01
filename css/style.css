@@ -209,6 +209,14 @@ kbd {
 .title-sub-row { align-items: center; margin-top: 10px; }
 .toggle { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
 .toggle input { width: 18px; height: 18px; accent-color: var(--gold); }
+.veh-row { display: flex; gap: 12px; justify-content: center; margin: 4px 0 10px; }
+.btn.veh { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 14px; font-size: 12px; opacity: 0.6; }
+.btn.veh[aria-pressed="true"] { opacity: 1; background: #b8f28c; }
+.veh-icon { width: 84px; height: 47px; }
+.veh-note { min-height: 1.2em; margin: -4px 0 8px; font-size: 13px; font-weight: 700; color: #ff9a9a; }
+.btn.veh.refused { animation: veh-no 0.4s; }
+@keyframes veh-no { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .btn.veh.refused { animation: none; } }
 
 .opts { display: flex; flex-direction: column; gap: 12px; text-align: left; margin: 14px 0; }
 .opts label { display: flex; gap: 10px; align-items: center; font-size: 15px; }
@@ -279,7 +287,7 @@ body.has-touch:not([data-scene="title"]):not([data-scene="council"]):not([data-s
 }
 body.has-touch #hud-dom { bottom: auto; top: 76px; }
 #touch .pad { display: flex; gap: 10px; align-items: flex-end; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; }
-#touch .pad.left { flex-wrap: wrap; width: 154px; }
+#touch .pad.left { flex-wrap: wrap; width: 176px; }
 #touch button[data-t="pilot"] { font-size: 12px; letter-spacing: 0.02em; }
 #touch .pad.right { flex-wrap: wrap; justify-content: flex-end; max-width: 190px; }
 #touch button {

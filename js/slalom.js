@@ -114,6 +114,7 @@
     this.warning = null;
     this.twist = false;
     this.twistT = 0;
+    this.depleted = false;
     this.state = 'countdown';
     this.cd = opts.retry ? 0 : -2.8; // the first time, the countdown waits for the stamp
     this.camY = -200;
@@ -297,6 +298,9 @@
       this.gates.forEach((g) => { if (g.bonus) g.scale = Math.min(1, this.twistT * 1.6); });
     }
     if (this.state === 'race' && this.twist && this.twistT >= 1 && s > this.finishS) this.finish();
+    // on the e-bike, the battery gives out past the original finish line (once the relocation banner
+    // has cleared, so the two don't pile up): keep pedaling, at 70%
+    if (this.state === 'race' && !this.depleted && G.isBike() && s > this.finishOrig && !G.hud.bannerBusy()) this.depleteBattery();
 
     // camera
     const zoom = this.zoom || 1;
@@ -435,6 +439,16 @@
     this.oncoming = this.oncoming.filter((o) => o.s > s - 700);
   };
 
+  S.depleteBattery = function () {
+    this.depleted = true;
+    this.car.maxSpeed *= 0.7;
+    G.hud.stamp(['BATTERY DEPLETED!', 'PEDAL-ASSIST: OFF', 'TOP SPEED 70%'], { dur: 2.4, color: '#ff9f1c' });
+    G.audio.play('fail');
+    G.hud.addShake(6);
+    for (let k = 0; k < 3; k++) this.fx.burst(this.car.x, this.car.y + 14, 6, { type: 'poof', color: ['#888', '#aaa'], speed: 50, life: 0.9, size: 7 });
+    G.hud.toast('NO CHARGING STATIONS ON MLK. A TASK FORCE IS EXPLORING THE CONCEPT OF OUTLETS.', { color: '#ff9f1c', dur: 4 });
+  };
+
   S.startTwist = function () {
     this.twist = true;
     this.twistT = 0;
@@ -457,7 +471,8 @@
     G.stats.slalomScore = this.score;
     G.stats.sliceIntegrity = Math.round(this.slice);
     G.hud.banner('SLICE DELIVERED', 'ASHBY BART · SCORE ' + this.score.toLocaleString() + ' · SLICE ' + Math.round(this.slice) + '%', { sting: 'passed', dur: 2.6, color: '#7CFC00' });
-    G.hud.banner('NOW PARK', 'THE ASHBY BART LOT IS A FUTURE HOUSING SITE. GOOD LUCK.', { sting: 'fail', dur: 1.8, color: '#ff8fd8' });
+    if (G.isBike()) G.hud.banner('NOW CHARGE', 'THE ASHBY BART LOT HAS NO CHARGING STATIONS. GOOD LUCK.', { sting: 'fail', dur: 1.8, color: '#ff8fd8' });
+    else G.hud.banner('NOW PARK', 'THE ASHBY BART LOT IS A FUTURE HOUSING SITE. GOOD LUCK.', { sting: 'fail', dur: 1.8, color: '#ff8fd8' });
     G.audio.play('applause');
     for (let k = 0; k < 60; k++) this.fx.add({ type: 'confetti', x: this.car.x + (Math.random() - 0.5) * 300, y: this.car.y - 250 - Math.random() * 100, vx: (Math.random() - 0.5) * 60, vy: 60 + Math.random() * 80, g: 40, drag: 0.5, rot: Math.random() * 6, vr: 6, size: 8, life: 3, color: G.pick(['#ff6b6b', '#ffd23f', '#6bb8ff', '#7CFC00', '#ff8fd8']) });
   };
@@ -694,7 +709,7 @@
         ctx.save();
         ctx.translate(x, -s);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText(i ? 'FUTURE HOUSING' : 'NO PARKING', 0, 0);
+        ctx.fillText(i ? 'FUTURE HOUSING' : G.isBike() ? 'NO CHARGING' : 'NO PARKING', 0, 0);
         ctx.restore();
       });
     }

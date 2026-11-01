@@ -3,13 +3,14 @@
 // Every member is a fictional archetype; the satire targets process, not people.
 (function () {
   const MEMBERS = [
-    { title: ['THE CONSULTANT', 'WHISPERER'], suit: '#1d3557', skin: '#e0ac69', hair: '#a8a8a8', acc: 'headset' },
-    { title: ['THE MOTION-TO-TABLE', 'MACHINE'], suit: '#4f5b66', skin: '#8d5524', hair: '#2b1d12', acc: 'gavel' },
+    { title: ['THE CONSULTANT', 'WHISPERER'], suit: '#4f5b66', skin: '#8d5524', hair: '#2b1d12', acc: 'headset', glasses: true, hairStyle: 'sides' },
+    // the chair: long curly hair, pearl earrings, a red shawl over a black top, and the gavel
+    { title: ['THE CHAIR OF', 'INFINITE PROCESS'], suit: '#1c1c1f', shawl: '#9b2a3e', skin: '#f0c9a6', hair: '#141414', acc: 'gavel', woman: true },
     { title: ['THE VISION-ZERO', 'VISIONARY'], suit: '#2a9d8f', skin: '#c68642', hair: '#1a1a1a', acc: 'helmet' },
     { title: ['THE UNANIMOUS', 'ABSTAINER'], suit: '#7b2d26', skin: '#f1c27d', hair: '#b5651d', acc: 'shrug' },
   ];
   G.COUNCIL = MEMBERS;
-  const MX = [270, 515, 765, 1010];
+  const MX = [515, 270, 765, 1010]; // the chair (member 1) presides from the left
 
   const PLAYER_LINES = [
     'I would like one (1) parking space.',
@@ -25,6 +26,27 @@
   ];
   // the way out: a plain request, in the same list, from the second round on
   const PLAIN_LINE = 'Hi. I just want to park on Hopkins and buy one slice at Gioia.';
+
+  // arriving by cargo e-bike: same hearing, different grievance
+  const PLAYER_LINES_EBIKE = [
+    'I would like one (1) e-bike charging station.',
+    'The roadies on Hopkins called me a "battery cheat."',
+    'A fixie rider spat at my motor. My motor has feelings.',
+    'Is a pedal-assist bike a bike? Asking for my battery.',
+    'Could the cycletrack have one (1) outlet?',
+    'The roadies said Hopkins is for "acoustic bikes only."',
+    'The fixies won\'t even make eye contact with my cargo box.',
+    'My battery is at 4%. Hypothetically.',
+    'I brought Form 27-B. It\'s in the cargo box.',
+    'I support the plan, as long as it has a plug.',
+  ];
+  const PLAIN_LINE_EBIKE = 'Hi. I just want to charge my e-bike on Hopkins without the roadies and the fixies yelling at me.';
+  const RESPONSES_EBIKE = [
+    { m: 2, text: 'Have you considered simply being an acoustic bicycle?', stamp: 'REIMAGINED' },
+    { m: 0, text: 'We have commissioned a study on whether e-bikes are bikes. It is powered by a separate study.', stamp: 'STUDIED', committee: 'E-Bike Ontology Working Group' },
+    { m: 1, text: 'The charging station is referred to the Subcommittee on Outlets. It meets when its laptop is charged.', stamp: 'REFERRED', committee: 'Subcommittee on Outlets' },
+    { m: 3, text: 'I abstain from the roadie-versus-fixie question, in solidarity with both and also the e-bikes.', stamp: 'ABSTAINED' },
+  ];
 
   const RESPONSES = [
     { m: 0, text: 'We hear your concern. We have commissioned a framework for hearing it.', stamp: 'STUDIED' },
@@ -60,17 +82,71 @@
     ctx.fillStyle = m.suit;
     G.rr(ctx, -58, 18, 116, 110, 30);
     ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.moveTo(-16, 18); ctx.lineTo(0, 52); ctx.lineTo(16, 18); ctx.fill();
-    ctx.fillStyle = m.acc === 'helmet' ? '#ffd23f' : '#c1121f';
-    ctx.beginPath(); ctx.moveTo(-4, 24); ctx.lineTo(4, 24); ctx.lineTo(6, 50); ctx.lineTo(0, 56); ctx.lineTo(-6, 50); ctx.fill();
+    if (!m.woman) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(-16, 18); ctx.lineTo(0, 52); ctx.lineTo(16, 18); ctx.fill();
+    } else if (m.shawl) {
+      // a red shawl draped over both shoulders, its hem dipping across the black top
+      ctx.fillStyle = m.shawl;
+      ctx.beginPath();
+      ctx.moveTo(-62, 128); ctx.lineTo(-64, 46); ctx.quadraticCurveTo(-58, 16, -24, 12); ctx.lineTo(24, 12);
+      ctx.quadraticCurveTo(58, 16, 64, 46); ctx.lineTo(62, 128);
+      ctx.quadraticCurveTo(52, 92, 40, 80); ctx.quadraticCurveTo(0, 64, -40, 82); ctx.quadraticCurveTo(-52, 94, -62, 128);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; // the hem's stitching and a fold
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-38, 76); ctx.quadraticCurveTo(0, 59, 38, 74); ctx.moveTo(44, 30); ctx.quadraticCurveTo(52, 50, 48, 70); ctx.stroke();
+    }
+    if (!m.woman) {
+      ctx.fillStyle = m.acc === 'helmet' ? '#ffd23f' : '#c1121f';
+      ctx.beginPath(); ctx.moveTo(-4, 24); ctx.lineTo(4, 24); ctx.lineTo(6, 50); ctx.lineTo(0, 56); ctx.lineTo(-6, 50); ctx.fill();
+    }
+    // long curly hair, past the shoulders: a mass of curls behind the head, spilling down both sides
+    if (m.woman) {
+      ctx.fillStyle = m.hair;
+      ctx.beginPath(); ctx.ellipse(0, -20, 40, 38, 0, 0, Math.PI * 2); ctx.fill();
+      const curls = [];
+      for (let a = Math.PI * 1.05; a <= Math.PI * 1.95; a += 0.2) curls.push([Math.cos(a) * 38, -22 + Math.sin(a) * 36, 11]);
+      [-1, 1].forEach((sd) => {
+        for (let yy = -24, k = 0; yy <= 66; yy += 9, k++) {
+          const out = 40 + (yy > 10 ? (yy - 10) * 0.18 : 0) + (k % 2 ? 4 : 0);
+          curls.push([sd * out, yy, 11 + (k % 3)], [sd * (out - 13), yy + 4, 10]);
+        }
+      });
+      curls.forEach(([cx, cy, r]) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); });
+      ctx.strokeStyle = 'rgba(255,255,255,0.13)'; // ringlet highlights
+      ctx.lineWidth = 1.6;
+      curls.forEach(([cx, cy, r], i) => { if (i % 2) return; ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 3.6, 5.6); ctx.stroke(); });
+    }
     // neck + head
     ctx.fillStyle = m.skin;
     ctx.fillRect(-9, 4, 18, 18);
-    ctx.beginPath(); ctx.ellipse(0, -18, 30, 34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -18, m.woman ? 32 : 30, 34, 0, 0, Math.PI * 2); ctx.fill();
+    if (m.woman) {
+      // the shawl comes up around the neck
+      ctx.fillStyle = m.shawl || m.suit;
+      G.rr(ctx, -26, 10, 52, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#f4efe6'; // pearl earrings
+      [-1, 1].forEach((sd) => { ctx.beginPath(); ctx.arc(sd * 31, -8, 3, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = 'rgba(230,120,120,0.35)'; // cheeks
+      [-1, 1].forEach((sd) => { ctx.beginPath(); ctx.ellipse(sd * 19, -8, 7, 5, 0, 0, Math.PI * 2); ctx.fill(); });
+    }
     // hair
     ctx.fillStyle = m.hair;
-    if (m.acc === 'headset') {
+    if (m.woman) {
+      // a deep side part: the hair sweeps over from her left and frames the face in curls
+      ctx.beginPath();
+      ctx.moveTo(-33, -14); ctx.quadraticCurveTo(-36, -54, 2, -54); ctx.quadraticCurveTo(34, -54, 34, -16);
+      ctx.quadraticCurveTo(26, -40, 8, -44); ctx.quadraticCurveTo(-18, -44, -33, -14);
+      ctx.fill();
+      [[-31, -24, 7], [-33, -10, 6], [32, -28, 7], [34, -14, 6], [24, -44, 7]].forEach(([cx, cy, r]) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); });
+    } else if (m.hairStyle === 'sides' || m.acc === 'gavel') {
+      ctx.beginPath(); ctx.ellipse(0, -36, 33, 22, 0, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillRect(-33, -38, 8, 30);
+      ctx.fillRect(25, -38, 8, 30);
+    } else if (m.acc === 'headset') {
       ctx.beginPath(); ctx.ellipse(0, -42, 30, 14, 0, Math.PI, Math.PI * 2); ctx.fill();
       ctx.fillRect(-30, -44, 60, 6);
     } else if (m.acc === 'gavel') {
@@ -82,8 +158,15 @@
     }
     // eyes / brows / mouth
     ctx.fillStyle = '#111';
-    ctx.beginPath(); ctx.arc(-11, -20, 3.2, 0, Math.PI * 2); ctx.arc(11, -20, 3.2, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#111';
+    if (m.woman) { // smiling eyes, with a flick of liner
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(-12, -18, 6, 1.15 * Math.PI, 1.85 * Math.PI); ctx.moveTo(18, -22); ctx.arc(12, -18, 6, 1.85 * Math.PI, 1.15 * Math.PI, true); ctx.stroke();
+      ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(-17.5, -21); ctx.lineTo(-21, -23); ctx.moveTo(17.5, -21); ctx.lineTo(21, -23); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(-11, -20, 3.2, 0, Math.PI * 2); ctx.arc(11, -20, 3.2, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.lineWidth = m.acc === 'shrug' ? 4 : 2.5;
     ctx.beginPath();
     const brow = m.acc === 'shrug' ? -6 : 0;
@@ -92,8 +175,14 @@
     ctx.stroke();
     if (speaking) {
       const open = 2 + Math.abs(Math.sin(t * 16)) * 7;
+      if (m.woman) { ctx.fillStyle = '#9b1b2e'; ctx.beginPath(); ctx.ellipse(0, -4, 11, open + 3, 0, 0, Math.PI * 2); ctx.fill(); }
       ctx.fillStyle = '#5a1a1a';
       ctx.beginPath(); ctx.ellipse(0, -4, 8, open, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (m.woman) {
+      ctx.fillStyle = '#9b1b2e'; // a wide smile in red lipstick
+      ctx.beginPath(); ctx.moveTo(-13, -8); ctx.quadraticCurveTo(0, -11, 13, -8); ctx.quadraticCurveTo(0, 10, -13, -8); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(-9, -7); ctx.quadraticCurveTo(0, -9, 9, -7); ctx.quadraticCurveTo(0, -1, -9, -7); ctx.fill();
     } else {
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -102,6 +191,13 @@
       ctx.stroke();
     }
     // accessories
+    if (m.glasses) {
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-20, -26, 16, 11);
+      ctx.strokeRect(4, -26, 16, 11);
+      ctx.beginPath(); ctx.moveTo(-4, -21); ctx.lineTo(4, -21); ctx.stroke();
+    }
     if (m.acc === 'headset') {
       ctx.strokeStyle = '#222';
       ctx.lineWidth = 4;
@@ -122,11 +218,6 @@
       ctx.fillText('WORK v9', 0, 4);
       ctx.restore();
     } else if (m.acc === 'gavel') {
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(-20, -26, 16, 11);
-      ctx.strokeRect(4, -26, 16, 11);
-      ctx.beginPath(); ctx.moveTo(-4, -21); ctx.lineTo(4, -21); ctx.stroke();
       const swing = speaking || o.gavel ? Math.sin(t * 14) * 0.6 : 0;
       ctx.save();
       ctx.translate(58, 40);
@@ -216,7 +307,9 @@
     this.bubble = null;
     this.playerBubble = null;
     this.speaking = -1;
-    this.deck = G.shuffle(RESPONSES);
+    this.bike = G.isBike();
+    this.plain = this.bike ? PLAIN_LINE_EBIKE : PLAIN_LINE;
+    this.deck = G.shuffle(this.bike ? RESPONSES.filter((r) => !/simply being a bicycle/.test(r.text)).concat(RESPONSES_EBIKE) : RESPONSES);
     this.deckIdx = 0;
     this.card = null;
     this.shake = 0;
@@ -224,7 +317,7 @@
     G.hud.reset();
     G.hud.setTicker(null);
     G.hud.banner('MISSION START', 'COUNCIL OF INFINITE PROCESS', { sting: 'start', dur: 2.6 });
-    G.hud.setObjective('OBTAIN AN EMERGENCY PARKING EXEMPTION', 'Choose what to say (1/2/3) before the meeting adjourns.');
+    G.hud.setObjective(this.bike ? 'OBTAIN AN EMERGENCY CHARGING STATION' : 'OBTAIN AN EMERGENCY PARKING EXEMPTION', 'Choose what to say (1/2/3) before the meeting adjourns.');
     G.hud.toast('COUNCIL NOW MEETING IN TEMPORARY CHAMBERS. CLOWNS ARE NOT COUNCIL MEMBERS (PENDING REVIEW).', { color: '#ff9ad5', dur: 5 });
     G.audio.setMusic('council');
     G.audio.play('crowd');
@@ -281,8 +374,8 @@
   C.openChoices = function () {
     this.toState('choose');
     this.chooseT = 9;
-    this.options = G.shuffle(PLAYER_LINES).slice(0, 3);
-    if (this.round > 0) this.options[Math.floor(Math.random() * 3)] = PLAIN_LINE;
+    this.options = G.shuffle(this.bike ? PLAYER_LINES_EBIKE : PLAYER_LINES).slice(0, 3);
+    if (this.round > 0) this.options[Math.floor(Math.random() * 3)] = this.plain;
     this.choiceBtns.forEach((b, i) => {
       b.textContent = i + 1 + ' · ' + this.options[i];
       b.classList.remove('picked');
@@ -293,8 +386,8 @@
 
   // autopilot (WATCH): two rounds of clever lines, then the plain request
   C.autoChoice = function () {
-    const plain = this.options.indexOf(PLAIN_LINE);
-    return this.round >= 2 && plain >= 0 ? plain : this.options.findIndex((o) => o !== PLAIN_LINE);
+    const plain = this.options.indexOf(this.plain);
+    return this.round >= 2 && plain >= 0 ? plain : this.options.findIndex((o) => o !== this.plain);
   };
 
   C.choose = function (i) {
@@ -304,7 +397,7 @@
     this.speaking = -1;
     this.bubble = null;
     this.playerBubble = this.options[i];
-    this.toState(this.options[i] === PLAIN_LINE ? 'pc' : 'player');
+    this.toState(this.options[i] === this.plain ? 'pc' : 'player');
   };
 
   C.update = function (dt) {
@@ -406,7 +499,7 @@
       G.addStar('PUBLIC COMMENT ENTERED INTO THE RECORD');
     }
     if (this.once('passed', 12.6)) {
-      G.hud.banner('MISSION PASSED', 'EXEMPTION DENIED. CONE GRANTED.', { sting: 'passed', dur: 2.8, color: '#7CFC00' });
+      G.hud.banner('MISSION PASSED', this.bike ? 'CHARGER DENIED. CONE GRANTED.' : 'EXEMPTION DENIED. CONE GRANTED.', { sting: 'passed', dur: 2.8, color: '#7CFC00' });
     }
     if (this.once('slice', 15.6)) {
       this.card = { kind: 'slice', t: 0, title: 'OUTSIDE THE TENT…', text: 'A PILOT-PROGRAM PIZZA CART ISSUES YOU ONE (1) PROVISIONAL SLICE' };
@@ -556,7 +649,7 @@
     ctx.fillStyle = '#111';
     ctx.font = G.font(12);
     ctx.textAlign = 'left';
-    ctx.fillText('EMERGENCY PARKING', 14, 22);
+    ctx.fillText(this.bike ? 'EMERGENCY E-BIKE CHARGING' : 'EMERGENCY PARKING', 14, 22);
     ctx.fillText('EXEMPTION — FORM 27-B', 14, 40);
     ctx.font = G.font(9, 700);
     ctx.fillText('Page 1 of 14 (double-sided)', 14, 56);
@@ -594,6 +687,21 @@
     ctx.fill();
     ctx.fillStyle = '#3a2518';
     ctx.beginPath(); ctx.ellipse(640, 530, 30, 34, 0, 0, Math.PI * 2); ctx.fill();
+    if (this.bike) {
+      // came by e-bike: the helmet stays on, straps and all
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(612, 528); ctx.lineTo(622, 560); ctx.moveTo(668, 528); ctx.lineTo(658, 560); ctx.stroke();
+      ctx.fillStyle = '#f7b801';
+      ctx.beginPath(); ctx.ellipse(640, 526, 37, 30, 0, Math.PI, Math.PI * 2); ctx.lineTo(677, 532); ctx.lineTo(603, 532); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#8a6d00';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#3a2518'; // vents
+      [[-18, 508, -0.5], [0, 503, 0], [18, 508, 0.5]].forEach(([dx, y, r]) => { ctx.save(); ctx.translate(640 + dx, y); ctx.rotate(r); G.rr(ctx, -4, -9, 8, 18, 4); ctx.fill(); ctx.restore(); });
+      ctx.fillStyle = '#e23b3b'; // blinky rear light
+      if (Math.floor(this.t * 3) % 2 === 0) { ctx.beginPath(); ctx.arc(640, 528, 4, 0, Math.PI * 2); ctx.fill(); }
+    }
     ctx.fillStyle = '#fdfdf7';
     ctx.save();
     ctx.translate(700, 590);
@@ -616,13 +724,14 @@
       ctx.fillStyle = '#ffd23f';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 4;
-      ctx.fillRect(24, 96, 380, 48);
-      ctx.strokeRect(24, 96, 380, 48);
+      // bottom right, clear of the chair's speech bubble on the left
+      ctx.fillRect(840, 420, 416, 48);
+      ctx.strokeRect(840, 420, 416, 48);
       ctx.fillStyle = '#111';
       ctx.font = G.font(20);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText('MEANWHILE, UNDER THE BIG TOP…', 38, 121);
+      ctx.fillText('MEANWHILE, UNDER THE BIG TOP…', 856, 445);
     }
     if (this.card) this.drawCard(ctx, this.card);
     // panel frame

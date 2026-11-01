@@ -175,6 +175,13 @@
     $('optFp').checked = s.view === 'fp';
     $('optAutopilot').checked = s.autopilot;
     $('titleFp').checked = s.view === 'fp';
+    $('optEbike').checked = s.vehicle === 'ebike';
+    syncVehicle();
+  }
+
+  function syncVehicle() {
+    $('vehCar').setAttribute('aria-pressed', String(!G.isBike()));
+    $('vehBike').setAttribute('aria-pressed', String(G.isBike()));
   }
 
   // PLAY hands you the wheel; WATCH hands it to the autopilot (city, council and slalom)
@@ -238,6 +245,28 @@
     bind('optMinimap', 'minimap', (el) => el.checked);
     bind('optFp', 'view', (el) => (el.checked ? 'fp' : 'top'));
     bind('optAutopilot', 'autopilot', (el) => el.checked);
+    bind('optEbike', 'vehicle', (el) => (el.checked ? 'ebike' : 'car'));
+    const pick = (v) => { $('vehNote').textContent = ''; G.settings.vehicle = v; applySettings(); syncVehicle(); G.audio.unlock(); G.audio.play('blip'); };
+    $('vehCar').addEventListener('click', () => pick('car'));
+    $('vehBike').addEventListener('click', () => pick('ebike'));
+    // the horse is on the menu, but not available
+    let horseNo = 0;
+    const HORSE_NO = [
+      'DENIED: Berkeley street conditions are inhumane.',
+      'DENIED: Berkeley street conditions are inhumane. The Animal Welfare Commission has seen Roosevelt Canyon.',
+      'DENIED: Berkeley street conditions are inhumane. Also, where would you park it?',
+      'DENIED: Berkeley street conditions are inhumane. A committee has been formed to study horse-friendly paving. ETA: 2041.',
+    ];
+    $('vehHorse').addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      G.audio.unlock();
+      G.audio.play('buzzer');
+      $('vehNote').textContent = HORSE_NO[Math.min(horseNo++, HORSE_NO.length - 1)];
+      b.classList.remove('refused');
+      void b.offsetWidth; // restart the shake
+      b.classList.add('refused');
+    });
+    syncVehicle();
     $('optSfx').addEventListener('change', () => G.audio.play('boing'));
     applySettings();
   }

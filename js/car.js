@@ -23,6 +23,15 @@
       this.slice = false;     // a pizza slice bungee-corded to the roof (slalom)
       this.hitFlash = 0;
       this.onLand = null;
+      this.bike = false;
+    }
+
+    // The city lets you swap the Prius for a front-loading cargo e-bike: narrower (it threads the
+    // gap in a diverter), a bit slower, otherwise the same arcade handling.
+    setVehicle(bike) {
+      this.bike = !!bike;
+      this.r = bike ? 9 : 14;
+      this.maxSpeed = bike ? 235 : 290;
     }
 
     get airborne() { return this.z > 0 || this.vz > 0; }
@@ -150,7 +159,8 @@
       ctx.translate(this.x + this.z * 0.3, this.y + this.z * 0.55);
       ctx.rotate(this.a);
       ctx.fillStyle = 'rgba(0,0,0,0.32)';
-      G.rr(ctx, -14, -24, 28, 48, 8);
+      if (this.bike) G.rr(ctx, -11, -26, 22, 52, 8);
+      else G.rr(ctx, -14, -24, 28, 48, 8);
       ctx.fill();
       ctx.restore();
 

@@ -28,9 +28,16 @@
       <p class="title-sub">Pothole City Edition</p>
       <p class="tagline">In a city where everything is a priority, nothing is paved.</p>
       <p class="brief"><strong>YOUR MISSION:</strong> Drive to Hopkins Street. Park. Buy one slice of pizza at Gioia. <em>How hard could it be?</em></p>
+      <div class="veh-row" role="group" aria-label="Vehicle">
+        <button id="vehCar" class="btn veh" type="button" aria-pressed="true"><svg class="veh-icon" viewBox="0 0 100 56" aria-hidden="true"><path d="M6 40 L8 30 L30 26 L46 12 L66 12 L88 26 L94 30 L94 40 Z" fill="#c3ccd2" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/><path d="M34 26 L48 15 L56 15 L56 26 Z M60 15 L66 15 L80 26 L60 26 Z" fill="#26415e"/><rect x="40" y="28" width="12" height="10" fill="#4fa3c7"/><circle cx="26" cy="42" r="8" fill="#1b1b1b"/><circle cx="76" cy="42" r="8" fill="#1b1b1b"/></svg><span>THE PRIUS</span></button>
+        <button id="vehBike" class="btn veh" type="button" aria-pressed="false"><svg class="veh-icon" viewBox="0 0 100 56" aria-hidden="true"><g fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="19" cy="42" r="11"/><circle cx="80" cy="40" r="13"/><path d="M19 42 L40 46 L58 46 L66 22 M58 46 L80 40 L72 22 L66 22 M40 46 L44 10 L40 6 L48 6"/><path d="M62 20 h10" stroke-width="4"/></g><path d="M5 14 L42 12 L40 40 L12 40 Z" fill="#c8742c" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/><rect x="71" y="16" width="15" height="5" rx="1.5" fill="#3a3f44"/></svg><span>CARGO E-BIKE</span></button>
+        <button id="vehHorse" class="btn veh" type="button" aria-pressed="false" aria-describedby="vehNote"><svg class="veh-icon" viewBox="0 0 100 56" aria-hidden="true"><g fill="#8b5a2b" stroke="#111" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M22 24 Q24 16 36 17 L62 18 Q70 18 72 12 L76 4 L80 6 L80 2 L84 8 Q92 14 92 20 L88 22 L80 18 L74 26 Q72 30 70 32 L68 46 L64 46 L64 34 L44 34 L40 46 L36 46 L36 34 Q30 34 28 46 L24 46 L25 32 Q20 28 22 24 Z"/></g><path d="M22 24 Q12 26 10 40" fill="none" stroke="#3a2518" stroke-width="4" stroke-linecap="round"/><path d="M72 12 Q66 16 62 18" fill="none" stroke="#3a2518" stroke-width="3" stroke-linecap="round"/><circle cx="84" cy="11" r="1.4" fill="#111"/></svg><span>HORSE</span></button>
+      </div>
+      <p id="vehNote" class="veh-note" role="status" aria-live="polite"></p>
       <table class="controls" aria-label="Controls">
         <tbody>
           <tr><th><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></th><td>Drive, brake/reverse, steer</td></tr>
+          <tr><th><kbd>B</kbd></th><td>Switch car / cargo e-bike (city). Bikes fit through diverters.</td></tr>
           <tr><th><kbd>Space</kbd></th><td>Reset car onto the road centerline</td></tr>
           <tr><th><kbd>Shift</kbd></th><td>Handbrake / sharp turn</td></tr>
           <tr><th><kbd>E</kbd> / <kbd>Enter</kbd></th><td>Interact with mission markers</td></tr>
@@ -80,6 +87,7 @@
         <label><input type="checkbox" id="optRadio"> KPTH talk-radio ticker</label>
         <label><input type="checkbox" id="optMinimap"> Minimap</label>
         <label><input type="checkbox" id="optFp"> 3D chase view in the city (V)</label>
+        <label><input type="checkbox" id="optEbike"> Ride the cargo e-bike instead of the car (B)</label>
         <label><input type="checkbox" id="optAutopilot"> Autopilot: watch a skilled run (O)</label>
         <label><input type="checkbox" id="optHazards"> Slalom secondary hazards (potholes, cyclists, traffic)</label>
       </div>
@@ -129,6 +137,7 @@
     <div class="pad left">
       <button data-t="hand" type="button" tabindex="-1" class="small" title="Handbrake">HB</button>
       <button data-t="pilot" type="button" tabindex="-1" class="small" title="Autopilot">AUTO</button>
+      <button data-t="vehicle" type="button" tabindex="-1" class="small" title="Car / e-bike">🚲</button>
       <button data-t="left" type="button" tabindex="-1">◀</button>
       <button data-t="right" type="button" tabindex="-1">▶</button>
     </div>

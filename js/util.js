@@ -116,6 +116,7 @@ G.settings = {
   minimap: true,
   view: 'top', // 'top' or 'fp' (3D chase view, city only)
   autopilot: false, // the slalom and city missions drive themselves: watch a skilled run
+  vehicle: 'car', // 'car' (the battered Prius) or 'ebike' (a front-loading cargo e-bike)
 };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);
@@ -159,4 +160,6 @@ G.addStar = (reason) => {
 
 G.params = new URLSearchParams(location.search);
 if (G.params.get('view') === 'fp' || G.params.get('view') === 'top') G.settings.view = G.params.get('view');
+if (G.params.get('vehicle') === 'car' || G.params.get('vehicle') === 'ebike') G.settings.vehicle = G.params.get('vehicle');
+G.isBike = () => G.settings.vehicle === 'ebike';
 if (G.params.has('autopilot')) G.settings.autopilot = G.params.get('autopilot') !== '0';

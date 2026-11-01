@@ -399,9 +399,34 @@ export function create() {
       return t;
     })();
     const flashGeo = new THREE.SphereGeometry(2.4, 8, 6);
+    const concrete = lambert('#c9c3b6'), shrub = lambert('#5c8a3a'), reflector = basic('#ffd23f');
+    const shrubGeo = new THREE.IcosahedronGeometry(6.5, 0);
     for (const c of world.closures) {
       const len = 2 * (c.road.hw + 4);
       const a = Math.atan2(c.p.dy, c.p.dx);
+      if (c.diverter) {
+        // two concrete planters with shrubs, and a bike-width gap between them
+        const g = new THREE.Group();
+        const hw = c.road.hw + 4, gap = c.gap;
+        [-1, 1].forEach((sd) => {
+          const w = hw - gap, mid = sd * (gap + w / 2);
+          const box = new THREE.Mesh(boxBase(), concrete);
+          box.scale.set(c.th * 2, 7, w);
+          box.position.z = mid;
+          g.add(box);
+          for (let l = 8; l < w - 4; l += 12) {
+            const s = new THREE.Mesh(shrubGeo, shrub);
+            s.position.set(0, 10, sd * (gap + l));
+            g.add(s);
+          }
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 16, 6).translate(0, 8, 0), reflector);
+          post.position.z = sd * (gap + 1.5);
+          g.add(post);
+        });
+        scene.add(place(g, c.p.x, c.p.y, 0, a));
+        scene.add(signOnPost(c.lines, { bg: '#2f7d4a', color: '#fff', border: '#fff', size: 11 }, c.sign[0], c.sign[1], faceRoad(c.sign[0], c.sign[1]), 10 + 6 * c.lines.length, 10));
+        continue;
+      }
       const g = new THREE.Group();
       const tex = stripeTex.clone();
       tex.repeat.set(len / 40, 1);
@@ -805,6 +830,99 @@ export function create() {
       wheels.push(w);
     });
   }
+  // ---------- the front-loading cargo e-bike (same frame of reference: forward = -z) ----------
+  const boxMat = lambert('#c8742c');
+  const bikeBody = new THREE.Group();
+  const bikeWheels = [];
+  carObj.add(bikeBody);
+  {
+    const black = lambert('#1b1b1b'), dark = lambert('#3a3f44');
+    const tube = (x0, y0, z0, x1, y1, z1, r, mat) => {
+      const a = new THREE.Vector3(x0, y0, z0), b = new THREE.Vector3(x1, y1, z1);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 6), mat || black);
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      bikeBody.add(m);
+      return m;
+    };
+    const wheel = (x, z, r, front) => {
+      const w = new THREE.Group();
+      const tr = new THREE.Group();
+      tr.add(new THREE.Mesh(new THREE.TorusGeometry(r - 0.9, 0.9, 6, 18).rotateY(Math.PI / 2), black));
+      [0, Math.PI / 3, (2 * Math.PI) / 3].forEach((k) => {
+        const sp = new THREE.Mesh(new THREE.BoxGeometry(0.3, (r - 1) * 2, 0.3), lambert('#9a9a9a'));
+        sp.rotation.x = k;
+        tr.add(sp);
+      });
+      w.add(tr);
+      w.position.set(x, r, z);
+      w.userData = { front, roll: tr };
+      bikeBody.add(w);
+      bikeWheels.push(w);
+    };
+    wheel(-12, -17, 5, true);
+    wheel(12, -17, 5, true);
+    wheel(0, 18, 7, false);
+    // the plywood box: flared sides, open top
+    const box = new THREE.Group();
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 20), boxMat);
+    floor.position.y = 6;
+    box.add(floor);
+    [[-10, 0, 0.6, 20], [10, 0, 0.6, 20], [0, -10, 20, 0.6], [0, 10, 20, 0.6]].forEach(([x, z, sx, sz]) => {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(sx, 13, sz), boxMat);
+      side.position.set(x, 12.5, z);
+      if (z < 0) side.rotation.x = -0.18; // the front leans out
+      box.add(side);
+    });
+    [[-10.4, 1], [10.4, 1]].forEach(([x]) => [-4, 4].forEach((z) => {
+      const ref = new THREE.Mesh(new THREE.CircleGeometry(1.4, 10), basic('#ff9f1c'));
+      ref.position.set(x, 13, z);
+      ref.rotation.y = x < 0 ? -Math.PI / 2 : Math.PI / 2;
+      box.add(ref);
+    }));
+    box.position.z = -16;
+    bikeBody.add(box);
+    // frame: under the box, the long low top tube, the seat tube, the head tube and bars
+    tube(0, 5, -6, 0, 6, 10, 1.2);
+    tube(0, 6, 10, 0, 20, 7, 1.1);
+    tube(0, 6, 10, 0, 7, 18, 0.9);
+    tube(0, 20, 7, 0, 7, 18, 0.8);
+    tube(0, 6, -6, 0, 24, -4, 1.1);
+    tube(-8, 24.5, -3, 8, 24.5, -3, 0.7);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 7), black);
+    seat.position.set(0, 21, 7);
+    bikeBody.add(seat);
+    // rear rack with the battery
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(7, 1, 12), black);
+    rack.position.set(0, 14, 15);
+    const batt = new THREE.Mesh(new THREE.BoxGeometry(6, 3.5, 10), dark);
+    batt.position.set(0, 16.2, 15);
+    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 1), basic('#7CFC00'));
+    led.position.set(0, 18.2, 12);
+    bikeBody.add(rack, batt, led);
+    // the rider: jacket, arms out to the bars, legs down to the pedals, a yellow helmet
+    const jacket = lambert('#3d6b8c'), pants = lambert('#2b2b33');
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(10, 13, 6), jacket);
+    torso.position.set(0, 28, 4);
+    torso.rotation.x = -0.35;
+    bikeBody.add(torso);
+    [-1, 1].forEach((sx) => {
+      tube(sx * 4.5, 32, 2, sx * 7, 25, -3, 1.3, jacket);
+      tube(sx * 3, 22, 7, sx * 3.5, 14, 1, 1.6, pants);
+      tube(sx * 3.5, 14, 1, sx * 3.5, 6.5, 3, 1.4, pants);
+    });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(3.6, 10, 8), lambert('#d9a07a'));
+    head.position.set(0, 38, 1);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(4.4, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), lambert('#f7b801'));
+    helmet.position.set(0, 38.6, 1.4);
+    bikeBody.add(head, helmet);
+    // the slice rides in the box
+    const slice = new THREE.Mesh(new THREE.ConeGeometry(5, 1.2, 3).rotateY(Math.PI / 6), lambert('#f4c26a'));
+    slice.position.set(0, 7.5, -16);
+    slice.userData.isSlice = true;
+    bikeBody.add(slice);
+    bikeBody.userData.slice = slice;
+  }
   const shadowTex = (() => {
     const c = document.createElement('canvas');
     c.width = c.height = 64;
@@ -852,11 +970,18 @@ export function create() {
     const steer = (G.input.right ? 1 : 0) - (G.input.left ? 1 : 0);
     smoothSteer += (steer - smoothSteer) * Math.min(1, dt * 12);
     place(carObj, car.x, car.y, car.z, car.a);
-    carBody.rotation.x = G.clamp(car.vz * 0.0009, -0.3, 0.3);
-    carBody.scale.set(1 + wob * 0.08, 1 - wob * 0.12, 1);
+    const body = car.bike ? bikeBody : carBody;
+    carBody.visible = !car.bike;
+    bikeBody.visible = car.bike;
+    bikeBody.userData.slice.visible = !!car.slice;
+    body.rotation.x = G.clamp(car.vz * 0.0009, -0.3, 0.3);
+    body.scale.set(1 + wob * 0.08, 1 - wob * 0.12, 1);
     bodyMat.color.set(car.hitFlash > 0 ? '#ffb3b3' : '#c3ccd2');
+    boxMat.color.set(car.hitFlash > 0 ? '#ffb3b3' : '#c8742c');
     wheelRoll -= (car.fwd * dt) / 4.5;
     wheels.forEach((w) => { w.rotation.y = w.userData.front ? -smoothSteer * 0.45 : 0; w.userData.roll.rotation.x = wheelRoll; });
+    bikeWheels.forEach((w) => { w.userData.roll.rotation.x = wheelRoll * (w.userData.front ? 0.9 : 0.65); });
+    bikeBody.rotation.z = car.bike ? -smoothSteer * 0.12 * G.clamp(car.speed / 150, 0, 1) : 0; // a little lean into turns
     shadow.position.set(car.x, 0.5, car.y);
     shadow.rotation.y = -car.a;
     const sh = 1 + car.z / 90;
@@ -875,10 +1000,12 @@ export function create() {
       camYaw += G.wrapAngle(car.a - camYaw) * Math.min(1, dt * (car.airborne ? 1.2 : 3.5));
       const cfx = Math.sin(camYaw), cfy = -Math.cos(camYaw);
       const shake = G.hud.shake * calm * 0.35;
+      // the e-bike's rider sits taller than the Prius: look over the helmet
+      const back = CHASE_BACK + (car.bike ? 6 : 0), up = CHASE_UP + (car.bike ? 22 : 0);
       camera.position.set(
-        car.x - cfx * CHASE_BACK + (Math.random() - 0.5) * shake,
-        CHASE_UP + car.z * 0.6 + (Math.random() - 0.5) * shake,
-        car.y - cfy * CHASE_BACK);
+        car.x - cfx * back + (Math.random() - 0.5) * shake,
+        up + car.z * 0.6 + (Math.random() - 0.5) * shake,
+        car.y - cfy * back);
       camera.lookAt(car.x + cfx * 90, 6 + car.z * 0.8, car.y + cfy * 90);
     }
     const focus = cine ? { x: cine.lx, y: cine.ly } : car;

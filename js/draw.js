@@ -44,6 +44,7 @@
 
   // ---------- the car (local coords, nose toward -y) ----------
   G.drawCarBody = (ctx, o = {}) => {
+    if (G.isBike()) { G.drawCargoBike(ctx, o); return; }
     // tires
     ctx.fillStyle = '#1b1b1b';
     [[-15, -17], [11, -17], [-15, 9], [11, 9]].forEach(([x, y]) => {
@@ -104,6 +105,118 @@
       ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke(); // bungee cord
       ctx.restore();
     }
+  };
+
+  // ---------- the front-loading cargo e-bike (local coords, nose toward -y) ----------
+  // Two wheels under a plywood box up front, one behind, a rider, and the battery on the rear rack.
+  G.drawCargoBike = (ctx, o = {}) => {
+    ctx.lineCap = 'round';
+    // front wheels peek out either side of the box; the rear wheel trails behind
+    ctx.fillStyle = '#1b1b1b';
+    [[-12.5, -21], [9.5, -21]].forEach(([x, y]) => { G.rr(ctx, x, y, 3, 11, 1.5); ctx.fill(); });
+    G.rr(ctx, -1.6, 13, 3.2, 13, 1.6);
+    ctx.fill();
+    // frame: box cradle to the head tube, the low step-through, up to the seat
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 16); ctx.stroke();
+    // the plywood box
+    ctx.fillStyle = o.flash ? '#fff' : '#c8742c';
+    G.rr(ctx, -10.5, -26, 21, 21, 4);
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#6e3b12';
+    ctx.stroke();
+    ctx.fillStyle = o.flash ? '#fff' : '#e09a52'; // the floor, seen over the sides
+    G.rr(ctx, -8, -23.5, 16, 16, 2.5);
+    ctx.fill();
+    ctx.fillStyle = '#ff9f1c'; // reflectors
+    [[-10.5, -20], [10.5, -20], [-10.5, -10], [10.5, -10]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 1.3, 0, Math.PI * 2); ctx.fill(); });
+    if (o.slice) {
+      ctx.save();
+      ctx.translate(0, -16);
+      G.drawPizza(ctx, 0, 0, 6);
+      ctx.restore();
+    }
+    // rear rack with the battery (the source of all the trouble on Hopkins)
+    ctx.fillStyle = o.burnt ? '#1a1a1a' : '#3a3f44';
+    G.rr(ctx, -4, 9, 8, 10, 1.5);
+    ctx.fill();
+    if (o.burnt) { // scorched: a glowing crack where the LED was
+      ctx.fillStyle = '#ff5a1f';
+      ctx.fillRect(-2.5, 12, 5, 1.2);
+      ctx.fillRect(-1, 14.5, 3, 1);
+    } else {
+      ctx.fillStyle = '#7CFC00';
+      ctx.fillRect(-1, 10.5, 2, 1.5);
+    }
+    // handlebars, then the rider (unless they've bailed out)
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-8, -3); ctx.lineTo(8, -3); ctx.stroke();
+    if (!o.noRider) G.drawCargoRider(ctx, o);
+  };
+
+  // The e-bike's rider from above: arms to the bars, shoulders and the yellow helmet. With `o.flail`
+  // (0..1) the arms windmill instead, for bailing out of a burning bike.
+  G.drawCargoRider = (ctx, o = {}) => {
+    const jacket = o.flash ? '#fff' : '#3d6b8c';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = jacket;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    if (o.flail != null) {
+      const w = Math.sin(o.flail * 30) * 0.9;
+      [-1, 1].forEach((sd) => { ctx.moveTo(sd * 6, 5); ctx.lineTo(sd * 6 + sd * 7 * Math.cos(w * sd), 5 - 7 * Math.sin(1.2 + w * sd)); });
+    } else {
+      ctx.moveTo(-6, 4); ctx.lineTo(-7, -2.5); ctx.moveTo(6, 4); ctx.lineTo(7, -2.5);
+    }
+    ctx.stroke();
+    ctx.fillStyle = jacket;
+    ctx.beginPath(); ctx.ellipse(0, 5.5, 8, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f7b801';
+    ctx.beginPath(); ctx.ellipse(0, 3.5, 4, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#8a6d00';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(0, -0.8); ctx.lineTo(0, 7.8); ctx.stroke();
+  };
+
+  // The cargo e-bike lying on its side (seen from above that's its side profile), nose toward -y,
+  // wheels toward +x, top of the box toward -x. G.CARGO_BATTERY_SIDE is where the battery ends up.
+  G.CARGO_BATTERY_SIDE = [-7, 13];
+  G.drawCargoBikeSide = (ctx, o = {}) => {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(2, 0, 16, 30, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1b1b1b';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(5, 17, 7.5, 0, Math.PI * 2); ctx.stroke(); // rear wheel
+    ctx.beginPath(); ctx.arc(7, -18, 5.5, 0, Math.PI * 2); ctx.stroke(); // front wheel
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(3, -8); ctx.lineTo(4, 8); ctx.lineTo(5, 17); // low tube to the rear hub
+    ctx.moveTo(4, 8); ctx.lineTo(-9, 6); // seat tube
+    ctx.moveTo(3, -8); ctx.lineTo(-15, -5); // head tube
+    ctx.moveTo(-15, -8); ctx.lineTo(-15, -2); // bars
+    ctx.stroke();
+    ctx.fillStyle = '#1b1b1b';
+    G.rr(ctx, -11.5, 3, 3, 7, 1.2); // seat
+    ctx.fill();
+    // the box, on its side
+    ctx.fillStyle = '#c8742c';
+    ctx.beginPath(); ctx.moveTo(4, -9); ctx.lineTo(4, -25); ctx.lineTo(-13, -28); ctx.lineTo(-12, -8); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#6e3b12';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#ff9f1c';
+    ctx.beginPath(); ctx.arc(-4, -22, 1.5, 0, Math.PI * 2); ctx.arc(-4, -13, 1.5, 0, Math.PI * 2); ctx.fill();
+    // rack and battery
+    const [bx, by] = G.CARGO_BATTERY_SIDE;
+    ctx.fillStyle = o.burnt ? '#1a1a1a' : '#3a3f44';
+    G.rr(ctx, bx - 2.5, by - 5, 5, 10, 1.2);
+    ctx.fill();
+    if (o.burnt) { ctx.fillStyle = '#ff5a1f'; ctx.fillRect(bx - 1, by - 3, 2, 6); }
   };
 
   // Background traffic / parked cars: tidy, unlike the player's.
