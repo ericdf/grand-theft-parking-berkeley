@@ -166,7 +166,7 @@ body[data-scene="title"] #pauseBtn { display: none; }
   margin: 0 0 12px;
 }
 .controls {
-  margin: 0 auto 14px;
+  margin: 16px auto 14px;
   border-collapse: collapse;
   font-size: 14px;
   text-align: left;
@@ -213,6 +213,11 @@ kbd {
 .btn.veh { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 14px; font-size: 12px; opacity: 0.6; }
 .btn.veh[aria-pressed="true"] { opacity: 1; background: #b8f28c; }
 .veh-icon { width: 84px; height: 47px; }
+@media (max-width: 480px) {
+  .veh-row { gap: 8px; }
+  .btn.veh { flex: 1 1 0; min-width: 0; padding: 6px 4px; font-size: 10px; }
+  .veh-icon { width: 100%; max-width: 72px; height: auto; aspect-ratio: 100 / 56; }
+}
 .veh-note { min-height: 1.2em; margin: -4px 0 8px; font-size: 13px; font-weight: 700; color: #ff9a9a; }
 .btn.veh.refused { animation: veh-no 0.4s; }
 @keyframes veh-no { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }

@@ -34,6 +34,15 @@
         <button id="vehHorse" class="btn veh" type="button" aria-pressed="false" aria-describedby="vehNote"><svg class="veh-icon" viewBox="0 0 100 56" aria-hidden="true"><g fill="#8b5a2b" stroke="#111" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M22 24 Q24 16 36 17 L62 18 Q70 18 72 12 L76 4 L80 6 L80 2 L84 8 Q92 14 92 20 L88 22 L80 18 L74 26 Q72 30 70 32 L68 46 L64 46 L64 34 L44 34 L40 46 L36 46 L36 34 Q30 34 28 46 L24 46 L25 32 Q20 28 22 24 Z"/></g><path d="M22 24 Q12 26 10 40" fill="none" stroke="#3a2518" stroke-width="4" stroke-linecap="round"/><path d="M72 12 Q66 16 62 18" fill="none" stroke="#3a2518" stroke-width="3" stroke-linecap="round"/><circle cx="84" cy="11" r="1.4" fill="#111"/></svg><span>HORSE</span></button>
       </div>
       <p id="vehNote" class="veh-note" role="status" aria-live="polite"></p>
+      <div class="btn-row">
+        <button id="startBtn" class="btn big" type="button" data-autofocus>PLAY <span class="hint">(Enter)</span></button>
+        <button id="watchBtn" class="btn big" type="button">WATCH</button>
+      </div>
+      <p class="watch-note">Watch: the autopilot drives. It knows a guy at the permit office. Press <kbd>O</kbd> to take the wheel.</p>
+      <div class="btn-row title-sub-row">
+        <label class="toggle"><input type="checkbox" id="titleFp"> 3D chase view</label>
+        <button id="optionsBtn" class="btn" type="button">Options</button>
+      </div>
       <table class="controls" aria-label="Controls">
         <tbody>
           <tr><th><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></th><td>Drive, brake/reverse, steer</td></tr>
@@ -47,15 +56,6 @@
           <tr><th>Mouse / tap / <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></th><td>Dialogue choices &amp; menus</td></tr>
         </tbody>
       </table>
-      <div class="btn-row">
-        <button id="startBtn" class="btn big" type="button" data-autofocus>PLAY <span class="hint">(Enter)</span></button>
-        <button id="watchBtn" class="btn big" type="button">WATCH</button>
-      </div>
-      <p class="watch-note">Watch: the autopilot drives. It knows a guy at the permit office. Press <kbd>O</kbd> to take the wheel.</p>
-      <div class="btn-row title-sub-row">
-        <label class="toggle"><input type="checkbox" id="titleFp"> 3D chase view</label>
-        <button id="optionsBtn" class="btn" type="button">Options</button>
-      </div>
       <p class="fine">A parody. All characters are fictional archetypes. Not affiliated with any game publisher, or with any city council, which would first need to form a committee.</p>
     </div>
   </section>
